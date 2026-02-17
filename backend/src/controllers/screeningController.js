@@ -12,7 +12,7 @@ async function screenResume(req, res, next) {
         const { resumeId } = req.body;
         if (!resumeId) throw new CustomError("resumeId is required", 400);
 
-        const resume = await Resume.findOne({ _id: resumeId, uploadedBy: req.user.id });
+        const resume = await Resume.findById(resumeId);
         if (!resume) throw new CustomError("Resume not found", 404);
         if (!resume.parsedText) throw new CustomError("Resume has not been parsed yet", 400);
 

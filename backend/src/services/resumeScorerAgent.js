@@ -33,7 +33,7 @@ Return a JSON object with:
 - rationale: string (brief explanation of the score)`;
 
         const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: "gpt-4.1-mini-2025-04-14",
             messages: [{ role: "user", content: prompt }],
             temperature: 0.2,
             response_format: { type: "json_object" },

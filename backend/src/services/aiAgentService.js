@@ -1,9 +1,7 @@
 // src/services/aiAgentService.js using OpenAI
 
-const { OpenAI } = require("openai");
+const { openai } = require("../config/ai");
 const { CustomError } = require("../utils/errors");
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 async function analyzeResume(resumeText, jobDescription) {
     try {
@@ -25,7 +23,7 @@ async function analyzeResume(resumeText, jobDescription) {
         `;
 
         const response = await openai.chat.completions.create({
-            model: "gpt-5-mini-2025-08-07",
+            model: "gpt-4.1-mini-2025-04-14",
             messages: [{ role: "user", content: prompt }],
             temperature: 0.2,
         });

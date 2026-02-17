@@ -35,7 +35,7 @@ const resumeSchema = new mongoose.Schema(
         uploadedBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
-            required: true,
+            default: null,
         },
         status: {
             type: String,

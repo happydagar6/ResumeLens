@@ -36,7 +36,7 @@ Missing Skills: ${screening.missingSkills.join(", ")}
 Return a JSON array of objects with fields: question, category (technical/behavioral/situational/experience/general), difficulty (easy/medium/hard).`;
 
         const aiResponse = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: "gpt-4.1-mini-2025-04-14",
             messages: [{ role: "user", content: prompt }],
             temperature: 0.4,
             response_format: { type: "json_object" },

@@ -4,16 +4,24 @@ const jwt = require("jsonwebtoken");
 const { CustomError } = require("../utils/errors");
 
 const authMiddleware = (req, res, next) => {
-    const token = req.cookies.token;
-    req.header('Authorization')?.replace('Bearer', '');
-    if(!token) return next(new CustomError('Unauthorized', 401));
+    // Try cookie first, then fallback to Authorization header
+    let token = req.cookies?.token;
+
+    if (!token) {
+        const authHeader = req.header("Authorization");
+        if (authHeader && authHeader.startsWith("Bearer ")) {
+            token = authHeader.replace("Bearer ", "").trim();
+        }
+    }
+
+    if (!token) return next(new CustomError("Unauthorized", 401));
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         req.user = decoded;
         next();
     } catch (error) {
-        next(new CustomError('Invalid token', 401));
+        next(new CustomError("Invalid token", 401));
     }
 };
 

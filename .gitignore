@@ -1,11 +1,6 @@
-# Create .gitignore
-@"
 # Dependencies
 node_modules/
 .pnpm-lock.yaml
-pnpm-lock.yaml
-package-lock.json
-yarn.lock
 
 # Next.js / Build
 .next/
@@ -31,4 +26,7 @@ Thumbs.db
 # Logs
 logs/
 *.log
-"@ | Out-File -Encoding UTF8 .gitignore
+
+# Uploads
+backend/src/uploads/*
+!backend/src/uploads/.gitkeep

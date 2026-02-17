@@ -55,81 +55,108 @@ export default function JobDetailPage() {
     if (loading) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-background">
-                <div className="animate-pulse text-muted-foreground">Loading...</div>
+                <div className="text-muted-foreground">Loading...</div>
             </div>
         );
     }
 
     return (
         <div className="min-h-screen bg-background">
-            <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-                <div className="max-w-6xl mx-auto px-6 h-16 flex items-center gap-4">
-                    <Link href="/" className="text-xl font-bold text-foreground">
+            {/* Header */}
+            <header className="border-b border-border bg-card sticky top-0 z-10">
+                <div className="max-w-6xl mx-auto px-6 h-16 flex items-center gap-3">
+                    <Link href="/" className="text-xl font-bold text-foreground tracking-tight">
                         Recruit<span className="text-primary">AI</span>
                     </Link>
-                    <span className="text-muted-foreground">/</span>
-                    <Link href="/jobs" className="text-sm text-muted-foreground hover:text-foreground">Jobs</Link>
-                    <span className="text-muted-foreground">/</span>
-                    <span className="text-sm text-foreground">{job?.title}</span>
+                    <span className="text-border">/</span>
+                    <Link href="/jobs" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Jobs</Link>
+                    <span className="text-border">/</span>
+                    <span className="text-sm text-foreground font-medium truncate">{job?.title}</span>
                 </div>
             </header>
 
             <main className="max-w-6xl mx-auto px-6 py-8">
-                {error && <div className="bg-error/10 border border-error/20 text-error text-sm rounded-lg p-3 mb-6">{error}</div>}
+                {error && (
+                    <div className="bg-error-light border border-error/20 text-error text-sm rounded-lg p-3 mb-6">
+                        {error}
+                    </div>
+                )}
 
-                {/* Job Header */}
-                <div className="bg-card border border-border rounded-2xl p-6 mb-8">
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <h1 className="text-2xl font-bold text-foreground">{job?.title}</h1>
-                            <p className="text-muted-foreground mt-1">{job?.company} • {job?.location || "Remote"} • {job?.type}</p>
+                {/* Job Info Card */}
+                <div className="bg-card border border-border rounded-xl p-6 mb-8 shadow-sm">
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                                <h1 className="text-2xl font-bold text-foreground">{job?.title}</h1>
+                                <span className={`text-xs font-medium px-3 py-1 rounded-full ${
+                                    job?.status === "open" ? "bg-success-light text-success" : "bg-secondary text-muted-foreground"
+                                }`}>
+                                    {job?.status}
+                                </span>
+                            </div>
+                            <p className="text-muted-foreground text-sm">
+                                {job?.company} • {job?.location || "Remote"} • {job?.type}
+                                {job?.salaryRange && ` • ${job.salaryRange}`}
+                            </p>
                             {job?.skills?.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5 mt-3">
                                     {job.skills.map((skill, i) => (
-                                        <span key={i} className="text-xs bg-primary/10 text-accent px-2 py-0.5 rounded-md">{skill}</span>
+                                        <span key={i} className="text-xs bg-primary-light text-primary px-2.5 py-0.5 rounded-md font-medium">{skill}</span>
                                     ))}
                                 </div>
                             )}
                         </div>
-                        <span className={`text-xs font-medium px-3 py-1 rounded-full ${job?.status === "open" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>
-                            {job?.status}
-                        </span>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-4 whitespace-pre-wrap">{job?.description}</p>
+                    {job?.description && (
+                        <div className="mt-5 pt-5 border-t border-border">
+                            <h3 className="text-sm font-medium text-foreground mb-2">Description</h3>
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{job.description}</p>
+                        </div>
+                    )}
                 </div>
 
-                {/* Resumes Section */}
-                <div className="mb-8">
+                {/* Candidates Section */}
+                <div>
                     <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-bold text-foreground">Candidates ({resumes.length})</h2>
-                        <label className="inline-flex items-center h-10 px-5 rounded-xl bg-primary text-white font-medium text-sm hover:bg-primary-hover transition-colors cursor-pointer">
+                        <div>
+                            <h2 className="text-xl font-bold text-foreground">Candidates</h2>
+                            <p className="text-sm text-muted-foreground mt-0.5">{resumes.length} resume{resumes.length !== 1 ? "s" : ""} uploaded</p>
+                        </div>
+                        <label className="inline-flex items-center h-10 px-5 rounded-lg bg-primary text-white font-medium text-sm hover:bg-primary-hover transition-colors cursor-pointer shadow-sm">
                             {uploading ? "Uploading..." : "📄 Upload Resume"}
                             <input type="file" accept=".pdf" onChange={handleUpload} className="hidden" disabled={uploading} />
                         </label>
                     </div>
 
                     {resumes.length === 0 ? (
-                        <div className="bg-card border border-border rounded-xl p-8 text-center">
-                            <p className="text-muted-foreground">No resumes uploaded yet. Upload a PDF to get started!</p>
+                        <div className="bg-card border border-border rounded-xl p-10 text-center shadow-sm">
+                            <div className="text-4xl mb-3">📄</div>
+                            <p className="text-foreground font-medium mb-1">No resumes yet</p>
+                            <p className="text-sm text-muted-foreground">Upload a PDF resume to start screening candidates</p>
                         </div>
                     ) : (
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                             {resumes.map((resume) => {
                                 const screening = screenings.find(s => s.resumeId?._id === resume._id || s.resumeId === resume._id);
                                 return (
-                                    <div key={resume._id} className="bg-card border border-border rounded-xl p-5 flex items-center justify-between">
-                                        <div>
-                                            <h3 className="font-semibold text-foreground">{resume.candidateName}</h3>
-                                            <p className="text-sm text-muted-foreground">{resume.fileName} • {resume.status}</p>
-                                        </div>
+                                    <div key={resume._id} className="bg-card border border-border rounded-xl p-5 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
                                         <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-primary-light rounded-lg flex items-center justify-center text-primary font-bold text-sm">
+                                                {resume.candidateName?.charAt(0)?.toUpperCase() || "?"}
+                                            </div>
+                                            <div>
+                                                <h3 className="font-semibold text-foreground">{resume.candidateName}</h3>
+                                                <p className="text-xs text-muted-foreground">{resume.fileName} • {resume.status}</p>
+                                            </div>
+                                        </div>
+                                        <div>
                                             {screening ? (
                                                 <Link href={`/screening/${screening._id}`}
-                                                    className="text-sm bg-success/10 text-success px-3 py-1 rounded-full font-medium">
-                                                    Score: {screening.overallScore}%
+                                                    className="inline-flex items-center text-sm bg-success-light text-success px-3 py-1.5 rounded-lg font-medium hover:shadow-sm transition-shadow">
+                                                    Score: {screening.overallScore}% →
                                                 </Link>
                                             ) : (
-                                                <span className="text-xs text-muted-foreground">Not screened</span>
+                                                <span className="text-xs text-muted-foreground bg-secondary px-3 py-1.5 rounded-lg">Not screened</span>
                                             )}
                                         </div>
                                     </div>

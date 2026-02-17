@@ -4,30 +4,32 @@ import Link from "next/link";
 
 export default function LoginPage() {
     return (
-        <div className="flex min-h-screen items-center justify-center bg-background px-6">
-            <div className="w-full max-w-md space-y-8 text-center">
-                <div>
-                    <h1 className="text-3xl font-bold text-foreground">
-                        Welcome back to Recruit<span className="text-primary">AI</span>
-                    </h1>
-                    <p className="mt-2 text-muted-foreground">Authentication is coming soon.</p>
+        <div className="min-h-screen bg-background flex items-center justify-center px-6">
+            <div className="w-full max-w-sm">
+                <div className="text-center mb-8">
+                    <Link href="/" className="text-2xl font-bold text-foreground tracking-tight">
+                        Recruit<span className="text-primary">AI</span>
+                    </Link>
+                    <p className="text-sm text-muted-foreground mt-2">Sign in to your account</p>
                 </div>
 
-                <div className="bg-card border border-border rounded-2xl p-8 space-y-4">
-                    <p className="text-muted-foreground text-sm">
-                        Auth has been temporarily disabled. You can access all pages directly.
+                <div className="bg-card border border-border rounded-xl p-6 shadow-sm text-center">
+                    <div className="w-12 h-12 bg-primary-light rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <span className="text-primary text-xl">🔒</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-5">
+                        Authentication is coming soon. You can access all pages directly for now.
                     </p>
                     <Link
                         href="/dashboard"
-                        className="inline-flex items-center justify-center h-11 w-full bg-primary text-white font-medium rounded-xl hover:bg-primary-hover transition-colors"
+                        className="inline-flex items-center justify-center h-10 w-full bg-primary text-white font-medium text-sm rounded-lg hover:bg-primary-hover transition-colors shadow-sm"
                     >
                         Go to Dashboard →
                     </Link>
                 </div>
 
-                <p className="text-sm text-muted-foreground">
-                    Don&apos;t have an account?{" "}
-                    <Link href="/signup" className="text-accent hover:text-primary font-medium">Sign up</Link>
+                <p className="text-center text-sm text-muted-foreground mt-5">
+                    Don&apos;t have an account? <Link href="/signup" className="text-primary font-medium hover:text-primary-hover">Sign up</Link>
                 </p>
             </div>
         </div>

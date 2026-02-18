@@ -1,18 +1,11 @@
 // src/services/resumeScorerAgent.js
-// TODO: Implement with LangChain.js + LangGraph for multi-agent workflow
-// This agent scores a resume against a job description:
-// - Overall match percentage (0-100)
-// - Matched skills
-// - Missing skills
-// - Strengths & weaknesses
-// - Recommendation
 
 const { openai } = require("../config/ai");
 const { CustomError } = require("../utils/errors");
+const { validateAIOutput, scoringSchema } = require("./validationService");
 
 async function scoreResume(resumeText, jobDescription, extractedEntities) {
-    try {
-        const prompt = `Score the following resume against the job description.
+    const prompt = `Score the following resume against the job description.
 
 Resume Text:
 ${resumeText}
@@ -32,17 +25,34 @@ Return a JSON object with:
 - recommendation: one of "strong_yes", "yes", "maybe", "no", "strong_no"
 - rationale: string (brief explanation of the score)`;
 
-        const response = await openai.chat.completions.create({
-            model: "gpt-4.1-mini-2025-04-14",
-            messages: [{ role: "user", content: prompt }],
-            temperature: 0.2,
-            response_format: { type: "json_object" },
-        });
+    let lastError = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+            const response = await openai.chat.completions.create({
+                model: "gpt-4.1-mini-2025-04-14",
+                messages: [{ role: "user", content: prompt }],
+                temperature: 0.2,
+                response_format: { type: "json_object" },
+            });
 
-        return JSON.parse(response.choices[0].message.content);
-    } catch (error) {
-        throw new CustomError("Resume scoring failed", 500);
+            const parsed = JSON.parse(response.choices[0].message.content);
+
+            // Validate against scoring schema
+            const validation = validateAIOutput(parsed, scoringSchema);
+            if (!validation.valid) {
+                console.error(`Resume scoring validation failed (attempt ${attempt}):`, validation.errors);
+                lastError = new CustomError("AI returned invalid scoring structure", 500);
+                continue;
+            }
+
+            return validation.data;
+        } catch (error) {
+            console.error(`Resume scoring attempt ${attempt} failed:`, error.message);
+            lastError = error;
+        }
     }
+
+    throw lastError || new CustomError("Resume scoring failed after retries", 500);
 }
 
 module.exports = { scoreResume };

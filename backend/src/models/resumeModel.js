@@ -27,6 +27,11 @@ const resumeSchema = new mongoose.Schema(
             type: String,
             default: "",
         },
+        // NEW: Store structured data extracted by AI from the resume
+        extractedEntities: {
+            type: mongoose.Schema.Types.Mixed,
+            default: null,
+        },
         jobId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Job",

@@ -3,7 +3,7 @@
 const Screening = require("../models/screeningModel");
 const Resume = require("../models/resumeModel");
 const Job = require("../models/jobModel");
-const { analyzeResume } = require("../services/aiAgentService");
+const { scoreResume } = require("../services/resumeScorerAgent"); // CHANGED: was aiAgentService
 const { response } = require("../utils/response");
 const { CustomError } = require("../utils/errors");
 
@@ -19,18 +19,23 @@ async function screenResume(req, res, next) {
         const job = await Job.findById(resume.jobId);
         if (!job) throw new CustomError("Associated job not found", 404);
 
-        // Run AI analysis
-        const aiResult = await analyzeResume(resume.parsedText, job.description);
+        // Run AI scoring with extracted entities for better accuracy
+        const aiResult = await scoreResume(
+            resume.parsedText,
+            job.description,
+            resume.extractedEntities || {} // Pass entities if available
+        );
 
+        // aiResult fields now DIRECTLY match the Screening model — no manual mapping needed!
         const screening = new Screening({
             resumeId: resume._id,
             jobId: job._id,
-            overallScore: aiResult.score || 0,
-            matchedSkills: aiResult.strengths ? [aiResult.strengths] : [],
-            missingSkills: aiResult.missingKeywords || [],
-            strengths: aiResult.strengths || "",
-            weaknesses: aiResult.weaknesses || "",
-            recommendation: getRecommendation(aiResult.score || 0),
+            overallScore: aiResult.score,
+            matchedSkills: aiResult.matchedSkills,
+            missingSkills: aiResult.missingSkills,
+            strengths: aiResult.strengths,
+            weaknesses: aiResult.weaknesses,
+            recommendation: aiResult.recommendation,
             rawAIResponse: aiResult,
         });
         await screening.save();
@@ -45,13 +50,7 @@ async function screenResume(req, res, next) {
     }
 }
 
-function getRecommendation(score) {
-    if (score >= 85) return "strong_yes";
-    if (score >= 70) return "yes";
-    if (score >= 50) return "maybe";
-    if (score >= 30) return "no";
-    return "strong_no";
-}
+// getRecommendation() REMOVED — the AI now returns the recommendation directly
 
 async function getScreeningResults(req, res, next) {
     try {

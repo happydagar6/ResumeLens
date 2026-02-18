@@ -1,25 +1,22 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
+const inter = Inter({
     variable: "--font-geist-sans",
     subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-    variable: "--font-geist-mono",
-    subsets: ["latin"],
+    display: "swap",
 });
 
 export const metadata = {
     title: "RecruitAI — Intelligent Resume Screening Platform",
-    description: "AI-powered recruitment platform that screens resumes, scores candidates, and generates personalized interview questions.",
+    description:
+        "AI-powered recruitment platform that screens resumes, scores candidates, and generates personalized interview questions.",
 };
 
 export default function RootLayout({ children }) {
     return (
         <html lang="en">
-            <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+            <body className={`${inter.variable} antialiased`}>
                 {children}
             </body>
         </html>

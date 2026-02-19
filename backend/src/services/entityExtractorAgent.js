@@ -1,52 +1,76 @@
 // src/services/entityExtractorAgent.js
+// LangChain-powered entity extraction agent.
+// Uses: ChatPromptTemplate → ChatOpenAI → JsonOutputParser → Zod validation
 
-const { openai } = require("../config/ai");
+const { ChatPromptTemplate } = require("@langchain/core/prompts");
+const { JsonOutputParser } = require("@langchain/core/output_parsers");
+const { extractorModel } = require("../config/langchain");
 const { CustomError } = require("../utils/errors");
 const { validateAIOutput, entityExtractionSchema } = require("./validationService");
 
-async function extractEntities(resumeText) {
-    const prompt = `Extract structured information from the following resume text.
+
+// ── Prompt Template ────────────────────────────────────────────────────────
+// System message sets the AI's role.
+// Human message contains the resume text (injected via {resumeText}).
+
+const extractionPrompt = ChatPromptTemplate.fromMessages([
+    [
+        "system",
+        `You are an expert resume parser. Your job is to extract structured information 
+from resume text with high accuracy. Always return valid JSON only.`,
+    ],
+    [
+        "human",
+        `Extract structured information from the following resume text.
 
 Resume:
-${resumeText}
+{resumeText}
 
-Return a JSON object with these fields:
+Return a JSON object with these exact fields:
 - skills: array of strings (technical and soft skills)
-- experience: array of objects with { role, company, duration, description }
-- education: array of objects with { degree, institution, year }
+- experience: array of objects with {{ role, company, duration, description }}
+- education: array of objects with {{ degree, institution, year }}
 - certifications: array of strings
-- contactInfo: object with { name, email, phone, location }`;
+- contactInfo: object with {{ name, email, phone, location }}
 
-    // Try up to 2 times (original + 1 retry)
+Include only information explicitly present in the resume. Do not invent or assume anything.`,
+    ],
+]);
+
+
+// ── LangChain Chain (LCEL) ──────────────────────────────────────────────────
+// prompt → model → JSON parser
+// .pipe() chains the steps: each step's output becomes the next step's input.
+
+const extractionChain = extractionPrompt.pipe(extractorModel).pipe(new JsonOutputParser());
+
+// ── Main Extraction Function ──────────────────────────────────────────────────
+async function extractEntities(resumeText) {
     let lastError = null;
-    for (let attempt = 1; attempt <= 2; attempt++) {
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-            const response = await openai.chat.completions.create({
-                model: "gpt-4.1-mini-2025-04-14",
-                messages: [{ role: "user", content: prompt }],
-                temperature: 0.1,
-                response_format: { type: "json_object" },
-            });
+            // invoke() runs the entire chain: format prompt -> call AI -> parse JSON
+            const parsed = await extractionChain.invoke({ resumeText });
 
-            const parsed = JSON.parse(response.choices[0].message.content);
-
-            // Validate AI output against our Zod schema
+            // Validate the AI's output against our Zod schema
             const validation = validateAIOutput(parsed, entityExtractionSchema);
-            if (!validation.valid) {
-                console.error(`Entity extraction validation failed (attempt ${attempt}):`, validation.errors);
-                lastError = new CustomError("AI returned invalid entity structure", 500);
-                continue; // Retry
+            if(!validation.valid) {
+                console.error(
+                    `Entity extraction validation failed on attempt ${attempt}:`,
+                    validation.errors
+                );
+                lastError = new CustomError("Ai returned invalid entity structure", 500);
+                continue; // retry
             }
-
-            return validation.data; // Returns the cleaned, validated data
+            return validation.data; // valid, structured entity data
         } catch (error) {
-            console.error(`Entity extraction attempt ${attempt} failed:`, error.message);
+            console.error(`Entity extraction error on attempt ${attempt}:`, error);
             lastError = error;
         }
     }
-
-    // Both attempts failed
-    throw lastError || new CustomError("Entity extraction failed after retries", 500);
-}
+    // After 3 attempts, throw the last error encountered
+    throw lastError || new CustomError("Unknown error during entity extraction", 500);
+};
 
 module.exports = { extractEntities };

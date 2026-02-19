@@ -41,6 +41,9 @@ importers:
       jsonwebtoken:
         specifier: ^9.0.3
         version: 9.0.3
+      langchain:
+        specifier: ^1.2.25
+        version: 1.2.25(@langchain/core@1.1.24(openai@6.22.0(zod@4.3.6)))(openai@6.22.0(zod@4.3.6))
       mongoose:
         specifier: ^9.2.1
         version: 9.2.1
@@ -510,6 +513,12 @@ packages:
   kareem@3.2.0:
     resolution: {integrity: sha512-VS8MWZz/cT+SqBCpVfNN4zoVz5VskR3N4+sTmUXme55e9avQHntpwpNq0yjnosISXqwJ3AQVjlbI4Dyzv//JtA==}
     engines: {node: '>=18.0.0'}
+
+  langchain@1.2.25:
+    resolution: {integrity: sha512-29qay7nZxkmkH3PRp8cjBpZmGCmA3EW8JwEYqZa0a5CW38nvO2Tr1rbFd26cnlLcxtA5hBRH57/XSPoWLjHJSw==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@langchain/core': ^1.1.26
 
   langsmith@0.5.4:
     resolution: {integrity: sha512-qYkNIoKpf0ZYt+cYzrDV+XI3FCexApmZmp8EMs3eDTMv0OvrHMLoxJ9IpkeoXJSX24+GPk0/jXjKx2hWerpy9w==}
@@ -1365,6 +1374,23 @@ snapshots:
       safe-buffer: 5.2.1
 
   kareem@3.2.0: {}
+
+  langchain@1.2.25(@langchain/core@1.1.24(openai@6.22.0(zod@4.3.6)))(openai@6.22.0(zod@4.3.6)):
+    dependencies:
+      '@langchain/core': 1.1.24(openai@6.22.0(zod@4.3.6))
+      '@langchain/langgraph': 1.1.4(@langchain/core@1.1.24(openai@6.22.0(zod@4.3.6)))(zod@4.3.6)
+      '@langchain/langgraph-checkpoint': 1.0.0(@langchain/core@1.1.24(openai@6.22.0(zod@4.3.6)))
+      langsmith: 0.5.4(openai@6.22.0(zod@4.3.6))
+      uuid: 10.0.0
+      zod: 4.3.6
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+      - '@opentelemetry/exporter-trace-otlp-proto'
+      - '@opentelemetry/sdk-trace-base'
+      - openai
+      - react
+      - react-dom
+      - zod-to-json-schema
 
   langsmith@0.5.4(openai@6.22.0(zod@4.3.6)):
     dependencies:

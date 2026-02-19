@@ -45,6 +45,10 @@ const jobSchema = new mongoose.Schema(
             enum: ["open", "closed", "draft"],
             default: "open",
         },
+        analyzedJD: {
+            type: mongoose.Schema.Types.Mixed,  // Stores any JSON object
+            default: null,
+        },
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",

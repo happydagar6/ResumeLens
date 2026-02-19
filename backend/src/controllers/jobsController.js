@@ -4,6 +4,7 @@ const Job = require("../models/jobModel");
 const { response } = require("../utils/response");
 const { CustomError } = require("../utils/errors");
 const { z } = require("zod");
+const { analyzeJD } = require("../services/jdAnalyzerAgent");
 
 const jobSchema = z.object({
     title: z.string().min(2),
@@ -22,6 +23,18 @@ async function createJob(req, res, next) {
         const data = jobSchema.parse(req.body);
         const job = new Job({ ...data, createdBy: req.user?.id || null });
         await job.save();
+
+        // NEW: Analyze the job description with AI (async, don't block response)
+        // We save the job first, then update it later
+        analyzeJD(job.description)
+            .then(async (analyzed) => {
+                await Job.findByIdAndUpdate(job._id, { analyzedJD: analyzed });
+                console.log(`JD analyzed for job ${job._id}:`, analyzed.requiredSkills);
+            })
+            .catch((err) => {
+                // Don't fail the job creation if AI analysis fails
+                console.error(`JD analysis failed for job ${job._id}:`, err.message);
+            });
         response(res, 201, { job }, "Job created successfully");
     } catch (err) {
         next(err);

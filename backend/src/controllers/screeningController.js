@@ -23,7 +23,8 @@ async function screenResume(req, res, next) {
         const aiResult = await scoreResume(
             resume.parsedText,
             job.description,
-            resume.extractedEntities || {} // Pass entities if available
+            resume.extractedEntities || {}, // Pass entities if available
+            job.analyzedJD || null // Structured JD analysis
         );
 
         // aiResult fields now DIRECTLY match the Screening model — no manual mapping needed!

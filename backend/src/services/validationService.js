@@ -47,8 +47,8 @@ const questionsSchema = z.object({
 function validateAIOutput(data, schema) {
     const result = schema.safeParse(data);
     if (!result.success) {
-        console.error("AI output validation failed:", result.error.errors);
-        return { valid: false, errors: result.error.errors, data: null };
+        console.error("AI output validation failed:", result.error.issues);
+        return { valid: false, errors: result.error.issues, data: null };
     }
     return { valid: true, errors: null, data: result.data };
 }

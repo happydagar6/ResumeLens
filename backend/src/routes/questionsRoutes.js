@@ -2,11 +2,11 @@
 
 const express = require("express");
 const { generateQuestions, getQuestionsByScreening } = require("../controllers/questionsController");
-// const authMiddleware = require("../middleware/authMiddleware"); // Auth disabled for now
+const authMiddleware = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// router.use(authMiddleware); // TODO: Re-enable auth later
+router.use(authMiddleware);
 
 router.post("/generate", generateQuestions);
 router.get("/screening/:screeningId", getQuestionsByScreening);

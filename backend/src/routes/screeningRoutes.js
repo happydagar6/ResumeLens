@@ -2,11 +2,11 @@
 
 const express = require("express");
 const { screenResume, getScreeningResults, getScreeningById } = require("../controllers/screeningController");
-// const authMiddleware = require("../middleware/authMiddleware"); // Auth disabled for now
+const authMiddleware = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// router.use(authMiddleware); // TODO: Re-enable auth later
+router.use(authMiddleware);
 
 router.post("/", screenResume);
 router.get("/job/:jobId", getScreeningResults);

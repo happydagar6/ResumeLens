@@ -2,11 +2,11 @@
 
 const express = require("express");
 const { createJob, getJobs, getJobById, updateJob, deleteJob } = require("../controllers/jobsController");
-// const authMiddleware = require("../middleware/authMiddleware"); // Auth disabled for now
+const authMiddleware = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// router.use(authMiddleware); // TODO: Re-enable auth later
+router.use(authMiddleware);
 
 router.post("/", createJob);
 router.get("/", getJobs);

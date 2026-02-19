@@ -29,14 +29,14 @@ export function AuthProvider({ children }) {
   const login = async (credentials) => {
     const data = await api.post("/auth/login", credentials);
     setUser(data.data.user);
-    router.push("/");
+    router.push("/jobs");
     return data;
   };
 
   const signup = async (userData) => {
     const data = await api.post("/auth/signup", userData);
     setUser(data.data.user);
-    router.push("/");
+    router.push("/jobs");
     return data;
   };
 

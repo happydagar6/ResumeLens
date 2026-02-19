@@ -14,6 +14,8 @@ const jobsRoutes = require('./routes/jobsRoutes');
 const resumesRoutes = require('./routes/resumeRoutes');
 const screeningRoutes = require('./routes/screeningRoutes');
 const questionsRoutes = require('./routes/questionsRoutes');
+const pipelineRoutes = require('./routes/pipelineRoutes');
+const statsRoutes = require('./routes/statsRoutes');
 
 const app = express();
 
@@ -38,6 +40,8 @@ app.get("/", (req, res) => {
             resumes: "/api/resumes",
             screening: "/api/screening",
             questions: "/api/questions",
+            pipeline: "/api/pipeline",
+            stats: "/api/stats",
         },
     });
 });
@@ -53,6 +57,8 @@ app.use("/api/jobs", jobsRoutes);
 app.use("/api/resumes", resumesRoutes);
 app.use("/api/screening", screeningRoutes);
 app.use("/api/questions", questionsRoutes);
+app.use("/api/pipeline", pipelineRoutes);
+app.use("/api/stats", statsRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);

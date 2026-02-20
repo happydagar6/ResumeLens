@@ -19,26 +19,10 @@ export default function DashboardHome() {
         const jobs = jobsData.data?.jobs || [];
 
         setStats([
-          {
-            label: "Total Jobs",
-            value: jobs.length,
-            icon: Briefcase,
-          },
-          {
-            label: "Open Jobs",
-            value: jobs.filter((j) => j.status === "open").length,
-            icon: Briefcase,
-          },
-          {
-            label: "Draft Jobs",
-            value: jobs.filter((j) => j.status === "draft").length,
-            icon: FileText,
-          },
-          {
-            label: "Closed Jobs",
-            value: jobs.filter((j) => j.status === "closed").length,
-            icon: Brain,
-          },
+          { label: "Total Jobs", value: jobs.length, icon: Briefcase },
+          { label: "Open Jobs", value: jobs.filter((j) => j.status === "open").length, icon: Briefcase },
+          { label: "Draft Jobs", value: jobs.filter((j) => j.status === "draft").length, icon: FileText },
+          { label: "Closed Jobs", value: jobs.filter((j) => j.status === "closed").length, icon: Brain },
         ]);
       } catch {
         setStats([]);

@@ -1,32 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api } from "@/lib/api-client";
+import { useJobs } from "@/hooks/use-jobs";
 import JobCard from "@/components/dashboard/job-card";
-import { LoadingSpinner } from "@/components/common/loading-state";
+import { CardSkeleton } from "@/components/common/loading-state";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import Link from "next/link";
 
 export default function JobsPage() {
-  const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchJobs() {
-      try {
-        const data = await api.get("/jobs");
-        setJobs(data.data?.jobs || []);
-      } catch {
-        setJobs([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchJobs();
-  }, []);
-
-  if (loading) return <LoadingSpinner />;
+  const { jobs, isLoading, isError, refetch } = useJobs();
 
   return (
     <div className="space-y-6">
@@ -45,14 +27,38 @@ export default function JobsPage() {
         </Button>
       </div>
 
-      {jobs.length === 0 ? (
+      {/* Loading: inline skeleton cards — no full-page spinner flash */}
+      {isLoading && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
+      )}
+
+      {/* Error state with retry */}
+      {isError && (
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center gap-3">
+          <p className="text-sm text-destructive">Failed to load jobs.</p>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="mr-2 h-3 w-3" />
+            Retry
+          </Button>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && !isError && jobs.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
           <p className="text-muted-foreground">No jobs created yet.</p>
           <Button className="mt-4" asChild>
             <Link href="/jobs/new">Create your first job</Link>
           </Button>
         </div>
-      ) : (
+      )}
+
+      {/* Jobs grid */}
+      {!isLoading && !isError && jobs.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {jobs.map((job) => (
             <JobCard key={job._id} job={job} />

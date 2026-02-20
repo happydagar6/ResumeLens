@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { api } from "@/lib/api-client";
+import { useScreening } from "@/hooks/use-screening";
+import { useQuestions, useGenerateQuestions } from "@/hooks/use-questions";
 import ScoreGauge from "@/components/dashboard/score-gauge";
 import SkillsDisplay from "@/components/dashboard/skills-display";
 import QuestionsDisplay from "@/components/dashboard/questions-display";
@@ -11,9 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Brain, Loader2, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ArrowLeft, Brain, Loader2, ThumbsUp, ThumbsDown, AlertTriangle } from "lucide-react";
 import Link from "next/link";
-import { toast } from "sonner";
 
 const recommendationLabels = {
   strong_yes: { label: "Strong Yes", icon: ThumbsUp, color: "text-green-600" },
@@ -25,52 +25,22 @@ const recommendationLabels = {
 
 export default function ScreeningDetailPage() {
   const { screeningId } = useParams();
-  const [screening, setScreening] = useState(null);
-  const [questions, setQuestions] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [screeningData, qData] = await Promise.allSettled([
-          api.get(`/screening/${screeningId}`),
-          api.get(`/questions/screening/${screeningId}`),
-        ]);
-        if (screeningData.status === "fulfilled") {
-          setScreening(screeningData.value.data?.screening);
-        }
-        if (qData.status === "fulfilled") {
-          setQuestions(qData.value.data?.questions);
-        }
-      } catch {
-        // handled
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, [screeningId]);
+  // â”€â”€ Data fetching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const { screening, isLoading: screeningLoading } = useScreening(screeningId);
+  // questions = the interviewQuestion document (null if none generated yet)
+  const { questions, isLoading: questionsLoading } = useQuestions(screeningId);
 
-  const handleGenerateQuestions = async () => {
-    try {
-      setGenerating(true);
-      const result = await api.post("/questions/generate", { screeningId });
-      setQuestions(result.data?.interviewQuestion);
-      toast.success("Interview questions generated!");
-    } catch (err) {
-      toast.error(err.message || "Failed to generate questions");
-    } finally {
-      setGenerating(false);
-    }
-  };
+  // â”€â”€ Mutations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const generateMutation = useGenerateQuestions();
 
-  if (loading) return <LoadingSpinner />;
+  if (screeningLoading || questionsLoading) return <LoadingSpinner />;
   if (!screening) return <p className="text-muted-foreground">Screening not found.</p>;
 
   const rec = recommendationLabels[screening.recommendation] || recommendationLabels.maybe;
   const candidate = screening.resumeId;
   const job = screening.jobId;
+  const hasFlags = screening.validationFlags?.length > 0;
 
   return (
     <div className="space-y-6">
@@ -114,6 +84,28 @@ export default function ScreeningDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Quality Flags (Phase 8 validation warnings) */}
+      {hasFlags && (
+        <Alert className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/30">
+          <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+          <AlertTitle className="text-yellow-800 dark:text-yellow-300">
+            Quality Flags ({screening.validationFlags.length})
+          </AlertTitle>
+          <AlertDescription className="text-yellow-700 dark:text-yellow-400">
+            <p className="mb-2 text-xs">
+              These are AI validation warnings, not errors. Review the result manually if you see unexpected flags.
+            </p>
+            <ul className="space-y-1">
+              {screening.validationFlags.map((flag, i) => (
+                <li key={i} className="text-xs font-mono">
+                  {flag}
+                </li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Skills */}
       <Card>
@@ -163,9 +155,13 @@ export default function ScreeningDetailPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Interview Questions</h2>
+          {/* Only show generate button when no questions exist yet */}
           {!questions && (
-            <Button onClick={handleGenerateQuestions} disabled={generating}>
-              {generating ? (
+            <Button
+              onClick={() => generateMutation.mutate({ screeningId })}
+              disabled={generateMutation.isPending}
+            >
+              {generateMutation.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Brain className="mr-2 h-4 w-4" />
@@ -175,6 +171,7 @@ export default function ScreeningDetailPage() {
           )}
         </div>
 
+        {/* questions is the interviewQuestion document; .questions is the array */}
         <QuestionsDisplay questions={questions?.questions || []} />
       </div>
     </div>

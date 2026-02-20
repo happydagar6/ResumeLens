@@ -1,21 +1,14 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { api } from "@/lib/api-client";
+import { useCreateJob } from "@/hooks/use-jobs";
 import JobForm from "@/components/dashboard/job-form";
-import { toast } from "sonner";
 
 export default function NewJobPage() {
-  const router = useRouter();
+  // Navigation + cache invalidation + toast all handled inside useCreateJob onSuccess
+  const { mutateAsync, isPending } = useCreateJob();
 
   const handleCreate = async (data) => {
-    try {
-      await api.post("/jobs", data);
-      toast.success("Job created successfully!");
-      router.push("/jobs");
-    } catch (err) {
-      toast.error(err.message || "Failed to create job");
-    }
+    await mutateAsync(data);
   };
 
   return (
@@ -26,7 +19,7 @@ export default function NewJobPage() {
           Fill in the details to create a new job posting.
         </p>
       </div>
-      <JobForm onSubmit={handleCreate} />
+      <JobForm onSubmit={handleCreate} isSubmitting={isPending} />
     </div>
   );
 }

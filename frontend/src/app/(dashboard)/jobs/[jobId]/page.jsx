@@ -1,8 +1,11 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { api } from "@/lib/api-client";
+import { useParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { useJob, useDeleteJob } from "@/hooks/use-jobs";
+import { useResumesByJob, useDeleteResume } from "@/hooks/use-resume";
+import { useRunScreening } from "@/hooks/use-screening";
+import { RESUME_KEYS } from "@/hooks/use-resume";
 import ResumeUpload from "@/components/dashboard/resume-upload";
 import ResumeCard from "@/components/dashboard/resume-card";
 import { LoadingSpinner } from "@/components/common/loading-state";
@@ -20,71 +23,25 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2, BarChart3, MapPin, Clock } from "lucide-react";
+import { Trash2, BarChart3, MapPin, Clock, Pencil } from "lucide-react";
 import Link from "next/link";
-import { toast } from "sonner";
 
 export default function JobDetailPage() {
   const { jobId } = useParams();
-  const router = useRouter();
-  const [job, setJob] = useState(null);
-  const [resumes, setResumes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [screeningId, setScreeningId] = useState(null);
+  const queryClient = useQueryClient();
 
-  const fetchData = useCallback(async () => {
-    try {
-      const [jobData, resumeData] = await Promise.all([
-        api.get(`/jobs/${jobId}`),
-        api.get(`/resumes/job/${jobId}`),
-      ]);
-      setJob(jobData.data?.job);
-      setResumes(resumeData.data?.resumes || []);
-    } catch {
-      toast.error("Failed to load job details");
-    } finally {
-      setLoading(false);
-    }
-  }, [jobId]);
+  // â”€â”€ Data fetching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const { job, isLoading: jobLoading } = useJob(jobId);
+  const { resumes, isLoading: resumesLoading } = useResumesByJob(jobId);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  // â”€â”€ Mutations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const deleteJobMutation = useDeleteJob();
+  const deleteResumeMutation = useDeleteResume(jobId);
+  const screenMutation = useRunScreening();
 
-  const handleScreen = async (resumeId) => {
-    try {
-      setScreeningId(resumeId);
-      await api.post("/screening", { resumeId });
-      toast.success("Resume screened successfully!");
-      fetchData();
-    } catch (err) {
-      toast.error(err.message || "Screening failed");
-    } finally {
-      setScreeningId(null);
-    }
-  };
+  const isLoading = jobLoading || resumesLoading;
 
-  const handleDeleteResume = async (resumeId) => {
-    try {
-      await api.delete(`/resumes/${resumeId}`);
-      toast.success("Resume deleted");
-      fetchData();
-    } catch (err) {
-      toast.error(err.message || "Delete failed");
-    }
-  };
-
-  const handleDeleteJob = async () => {
-    try {
-      await api.delete(`/jobs/${jobId}`);
-      toast.success("Job deleted");
-      router.push("/jobs");
-    } catch (err) {
-      toast.error(err.message || "Delete failed");
-    }
-  };
-
-  if (loading) return <LoadingSpinner />;
+  if (isLoading) return <LoadingSpinner />;
   if (!job) return <p className="text-muted-foreground">Job not found.</p>;
 
   return (
@@ -120,6 +77,12 @@ export default function JobDetailPage() {
               Screening Results
             </Link>
           </Button>
+          <Button variant="outline" asChild>
+            <Link href={`/jobs/${jobId}/edit`}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
+            </Link>
+          </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="ghost" className="text-destructive">
@@ -136,7 +99,12 @@ export default function JobDetailPage() {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteJob}>Delete</AlertDialogAction>
+                <AlertDialogAction
+                  onClick={() => deleteJobMutation.mutate(jobId)}
+                  disabled={deleteJobMutation.isPending}
+                >
+                  Delete
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -175,10 +143,15 @@ export default function JobDetailPage() {
 
       <Separator />
 
-      {/* Resume Upload */}
+      {/* Resume Upload â€” onUploaded invalidates the resumes cache directly */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Upload Resume</h2>
-        <ResumeUpload jobId={jobId} onUploaded={fetchData} />
+        <ResumeUpload
+          jobId={jobId}
+          onUploaded={() =>
+            queryClient.invalidateQueries({ queryKey: RESUME_KEYS.byJob(jobId) })
+          }
+        />
       </div>
 
       <Separator />
@@ -198,8 +171,17 @@ export default function JobDetailPage() {
               <ResumeCard
                 key={resume._id}
                 resume={resume}
-                onScreen={handleScreen}
-                onDelete={handleDeleteResume}
+                // Per-resume loading state: only show spinner on the resume being screened
+                screening={
+                  screenMutation.isPending &&
+                  screenMutation.variables?.resumeId === resume._id
+                }
+                onScreen={(resumeId) =>
+                  screenMutation.mutate({ resumeId, jobId })
+                }
+                onDelete={(resumeId) =>
+                  deleteResumeMutation.mutate(resumeId)
+                }
               />
             ))}
           </div>

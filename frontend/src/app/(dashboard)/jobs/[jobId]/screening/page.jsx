@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { api } from "@/lib/api-client";
+import { useJob } from "@/hooks/use-jobs";
+import { useScreeningsByJob } from "@/hooks/use-screening";
 import ScreeningResults from "@/components/dashboard/screening-results";
 import { LoadingSpinner } from "@/components/common/loading-state";
 import { Button } from "@/components/ui/button";
@@ -11,29 +11,12 @@ import Link from "next/link";
 
 export default function JobScreeningPage() {
   const { jobId } = useParams();
-  const [screenings, setScreenings] = useState([]);
-  const [job, setJob] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { job, isLoading: jobLoading } = useJob(jobId);
+  const { screenings, isLoading: screeningsLoading } = useScreeningsByJob(jobId);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [screeningData, jobData] = await Promise.all([
-          api.get(`/screening/job/${jobId}`),
-          api.get(`/jobs/${jobId}`),
-        ]);
-        setScreenings(screeningData.data?.screenings || []);
-        setJob(jobData.data?.job);
-      } catch {
-        setScreenings([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, [jobId]);
+  const isLoading = jobLoading || screeningsLoading;
 
-  if (loading) return <LoadingSpinner />;
+  if (isLoading) return <LoadingSpinner />;
 
   return (
     <div className="space-y-6">

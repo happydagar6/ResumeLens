@@ -20,6 +20,15 @@ async function screenSingle(req, res, next) {
         const { resumeId } = req.body;
         if (!resumeId) throw new CustomError("resumeId is required", 400);
 
+        // Ownership check: verify the resume's parent job belongs to this user
+        const resume = await Resume.findById(resumeId).select("jobId");
+        if (!resume) throw new CustomError("Resume not found", 404);
+        const job = await Job.findById(resume.jobId).select("createdBy");
+        if (!job) throw new CustomError("Associated job not found", 404);
+        if (req.user.role !== "admin" && job.createdBy?.toString() !== req.user.id) {
+            throw new CustomError("Access denied", 403);
+        }
+
         console.log(`[Pipeline] Starting screening pipeline for resume ${resumeId}...`);
         const result = await runScreeningPipeline(resumeId);
         
@@ -57,8 +66,12 @@ async function screenBatch(req, res, next) {
         const { jobId, concurrency = 3 } = req.body;
         if (!jobId) throw new CustomError("jobId is required", 400);
 
-        // Verify job exists
+        // Verify job exists AND the requester owns it (or is admin)
+        const job = await Job.findById(jobId);
         if (!job) throw new CustomError("Job not found", 404);
+        if (req.user.role !== "admin" && job.createdBy?.toString() !== req.user.id) {
+            throw new CustomError("Access denied", 403);
+        }
 
         // Find all resumes that need screening
         // Exclude already screened resumes and currenlty being screened

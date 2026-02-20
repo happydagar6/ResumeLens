@@ -2,6 +2,7 @@
 
 const express = require("express");
 const authMiddleware = require("../middleware/authMiddleware");
+const authorize = require("../middleware/authorize");
 const { screenSingle, screenBatch, getPipelineStatus } = require("../controllers/pipelineController");
 
 const router = express.Router();
@@ -9,13 +10,11 @@ const router = express.Router();
 // All pipeline routes require authentication
 router.use(authMiddleware);
 
-// Post /api/pipeline/screen - run full screening pipeline for a single resume
-router.post("/screen", screenSingle);
-
-// POST /api/pipeline/batch-screen - run screening pipeline for all unscreened resumes of a job
-router.post("/batch-screen", screenBatch);
-
-// GET /api/pipeline/status/:resumeId - get current status of the screening pipeline for a resume
+// READ: any authenticated user can check pipeline status
 router.get("/status/:resumeId", getPipelineStatus);
+
+// WRITE: only recruiters and admins can trigger AI screening
+router.post("/screen", authorize("recruiter", "admin"), screenSingle);
+router.post("/batch-screen", authorize("recruiter", "admin"), screenBatch);
 
 module.exports = router;

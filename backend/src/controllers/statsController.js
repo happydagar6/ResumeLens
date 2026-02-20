@@ -14,11 +14,33 @@ const { CustomError } = require("../utils/errors");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/stats/overview
-// Returns site-wide aggregate statistics for the dashboard.
+// Returns aggregate statistics scoped to the current user.
+// Admins see global platform stats. Everyone else sees only their own data.
 // ─────────────────────────────────────────────────────────────────────────────
 async function getOverviewStats(req, res, next) {
     try {
-        // Run all independent DB queries in parallel for performance
+        const isAdmin = req.user.role === "admin";
+
+        // ── Build scoped filters ─────────────────────────────────────────────
+        // jobFilter:        used for Job.countDocuments / Job.find
+        // resumeFilter:     used for Resume.countDocuments / Resume.aggregate
+        // screeningMatch:   used as { $match: ... } inside Screening.aggregate
+        //
+        // For non-admins, we resolve the user's job IDs once here and reuse
+        // them in every sub-query below — avoids a $lookup in each aggregation.
+        const jobFilter = isAdmin ? {} : { createdBy: req.user.id };
+
+        let resumeFilter = {};
+        let screeningMatch = {};
+
+        if (!isAdmin) {
+            const userJobs = await Job.find(jobFilter).select("_id");
+            const jobIds = userJobs.map((j) => j._id);
+            resumeFilter = { jobId: { $in: jobIds } };
+            screeningMatch = { jobId: { $in: jobIds } };
+        }
+
+        // ── Run all independent DB queries in parallel ───────────────────────
         const [
             totalJobs,
             openJobs,
@@ -31,18 +53,19 @@ async function getOverviewStats(req, res, next) {
             resumeStatusBreakdown,
             recentJobs,
         ] = await Promise.all([
-            // Job counts
-            Job.countDocuments(),
-            Job.countDocuments({ status: "open" }),
-            Job.countDocuments({ status: "closed" }),
+            // Job counts — scoped to user
+            Job.countDocuments(jobFilter),
+            Job.countDocuments({ ...jobFilter, status: "open" }),
+            Job.countDocuments({ ...jobFilter, status: "closed" }),
 
-            // Resume counts
-            Resume.countDocuments(),
-            Resume.countDocuments({ status: "screened" }),
-            Resume.countDocuments({ status: "error" }),
+            // Resume counts — scoped via jobIds
+            Resume.countDocuments(resumeFilter),
+            Resume.countDocuments({ ...resumeFilter, status: "screened" }),
+            Resume.countDocuments({ ...resumeFilter, status: "error" }),
 
-            // Scoring stats — avg, max, min across all screenings
+            // Scoring stats — avg, max, min across user's screenings
             Screening.aggregate([
+                { $match: screeningMatch },
                 {
                     $group: {
                         _id: null,
@@ -54,8 +77,9 @@ async function getOverviewStats(req, res, next) {
                 },
             ]),
 
-            // How many screenings per recommendation category
+            // How many screenings per recommendation category — user scoped
             Screening.aggregate([
+                { $match: screeningMatch },
                 {
                     $group: {
                         _id: "$recommendation",
@@ -65,8 +89,9 @@ async function getOverviewStats(req, res, next) {
                 { $sort: { count: -1 } },
             ]),
 
-            // Resume pipeline breakdown (all statuses)
+            // Resume pipeline breakdown (all statuses) — user scoped
             Resume.aggregate([
+                { $match: resumeFilter },
                 {
                     $group: {
                         _id: "$status",
@@ -75,8 +100,8 @@ async function getOverviewStats(req, res, next) {
                 },
             ]),
 
-            // 5 most recently created jobs for "Recent Activity" widget
-            Job.find()
+            // 5 most recently created jobs for "Recent Activity" widget — user scoped
+            Job.find(jobFilter)
                 .sort({ createdAt: -1 })
                 .limit(5)
                 .select("title company status type createdAt"),
@@ -163,9 +188,14 @@ async function getJobStats(req, res, next) {
 
         // Confirm the job exists
         const job = await Job.findById(jobId).select(
-            "title company status type description skills createdAt"
+            "title company status type description skills createdAt createdBy"
         );
         if (!job) throw new CustomError("Job not found", 404);
+
+        // Ownership check: only the job creator or an admin can view its stats
+        if (req.user.role !== "admin" && job.createdBy?.toString() !== req.user.id) {
+            throw new CustomError("Access denied", 403);
+        }
 
         const jobObjectId = new mongoose.Types.ObjectId(jobId);
 

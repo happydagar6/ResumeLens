@@ -20,6 +20,11 @@ async function uploadResume(req, res, next) {
         const job = await Job.findById(jobId);
         if (!job) throw new CustomError("Job not found", 404);
 
+        // Ownership check: only the job owner or admin can upload resumes to this job
+        if (req.user.role !== "admin" && job.createdBy?.toString() !== req.user.id) {
+            throw new CustomError("Access denied — you do not own this job", 403);
+        }
+
         // Step 1: Parse PDF text
         let parsedText = "";
         try {
@@ -64,6 +69,14 @@ async function uploadResume(req, res, next) {
 async function getResumesByJob(req, res, next) {
     try {
         const { jobId } = req.params;
+
+        // Verify the job exists and the requester owns it (or is admin)
+        const job = await Job.findById(jobId);
+        if (!job) throw new CustomError("Job not found", 404);
+        if (req.user.role !== "admin" && job.createdBy?.toString() !== req.user.id) {
+            throw new CustomError("Access denied", 403);
+        }
+
         const resumes = await Resume.find({ jobId }).sort({ createdAt: -1 });
         response(res, 200, { resumes });
     } catch (err) {
@@ -76,6 +89,13 @@ async function getResumeById(req, res, next) {
     try {
         const resume = await Resume.findById(req.params.id);
         if (!resume) throw new CustomError("Resume not found", 404);
+
+        // Verify the parent job is accessible by this user
+        const job = await Job.findById(resume.jobId);
+        if (job && req.user.role !== "admin" && job.createdBy?.toString() !== req.user.id) {
+            throw new CustomError("Access denied", 403);
+        }
+
         response(res, 200, { resume });
     } catch (err) {
         next(err);
@@ -85,8 +105,16 @@ async function getResumeById(req, res, next) {
 // Delete a resume by ID
 async function deleteResume(req, res, next) {
     try {
-        const resume = await Resume.findByIdAndDelete(req.params.id);
+        const resume = await Resume.findById(req.params.id);
         if (!resume) throw new CustomError("Resume not found", 404);
+
+        // Verify the parent job is accessible by this user
+        const job = await Job.findById(resume.jobId);
+        if (job && req.user.role !== "admin" && job.createdBy?.toString() !== req.user.id) {
+            throw new CustomError("Access denied", 403);
+        }
+
+        await resume.deleteOne();
         response(res, 200, null, "Resume deleted successfully");
     } catch (err) {
         next(err);

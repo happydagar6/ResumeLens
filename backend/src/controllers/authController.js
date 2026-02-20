@@ -19,8 +19,8 @@ const loginSchema = z.object({
     password: z.string().min(6),
 });
 
-function generateToken(userId) {
-    return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
+function generateToken(userId, role) {
+    return jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
         expiresIn: process.env.JWT_EXPIRY || "7d",
     });
 }
@@ -43,7 +43,7 @@ async function signup(req, res, next) {
         const user = new User({ name, email, password, company, role });
         await user.save();
 
-        const token = generateToken(user._id);
+        const token = generateToken(user._id, user.role);
         setTokenCookie(res, token);
 
         response(res, 201, { user: { id: user._id, name, email, company, role: user.role } }, "User created successfully");
@@ -60,7 +60,7 @@ async function login(req, res, next) {
             throw new CustomError("Invalid credentials", 401);
         }
 
-        const token = generateToken(user._id);
+        const token = generateToken(user._id, user.role);
         setTokenCookie(res, token);
 
         response(res, 200, { user: { id: user._id, name: user.name, email: user.email, company: user.company, role: user.role } }, "Logged in successfully");

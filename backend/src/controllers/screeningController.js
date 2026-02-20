@@ -19,6 +19,11 @@ async function screenResume(req, res, next) {
         const job = await Job.findById(resume.jobId);
         if (!job) throw new CustomError("Associated job not found", 404);
 
+        // Ownership check: only the job creator or admin can screen its resumes
+        if (req.user.role !== "admin" && job.createdBy?.toString() !== req.user.id) {
+            throw new CustomError("Access denied", 403);
+        }
+
         // Run AI scoring with extracted entities for better accuracy
         const aiResult = await scoreResume(
             resume.parsedText,
@@ -56,6 +61,14 @@ async function screenResume(req, res, next) {
 async function getScreeningResults(req, res, next) {
     try {
         const { jobId } = req.params;
+
+        // Verify the job exists and the requester owns it (or is admin)
+        const job = await Job.findById(jobId);
+        if (!job) throw new CustomError("Job not found", 404);
+        if (req.user.role !== "admin" && job.createdBy?.toString() !== req.user.id) {
+            throw new CustomError("Access denied", 403);
+        }
+
         const screenings = await Screening.find({ jobId })
             .populate("resumeId", "candidateName candidateEmail fileName")
             .sort({ overallScore: -1 });
@@ -69,8 +82,15 @@ async function getScreeningById(req, res, next) {
     try {
         const screening = await Screening.findById(req.params.id)
             .populate("resumeId", "candidateName candidateEmail fileName parsedText")
-            .populate("jobId", "title company description");
+            .populate("jobId", "title company description createdBy");
         if (!screening) throw new CustomError("Screening result not found", 404);
+
+        // Ownership check via the populated jobId.createdBy
+        const jobCreator = screening.jobId?.createdBy?.toString();
+        if (req.user.role !== "admin" && jobCreator !== req.user.id) {
+            throw new CustomError("Access denied", 403);
+        }
+
         response(res, 200, { screening });
     } catch (err) {
         next(err);

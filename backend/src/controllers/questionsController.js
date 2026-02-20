@@ -24,6 +24,11 @@ async function generateQuestions(req, res, next) {
     if (!resume || !job)
       throw new CustomError("Associated resume or job not found", 404);
 
+    // Ownership check: only the job creator or admin can generate questions
+    if (req.user.role !== "admin" && job.createdBy?.toString() !== req.user.id) {
+      throw new CustomError("Access denied", 403);
+    }
+
     // Generate questions via dedicated service (REPLACED 15 lines of inline code)
     const aiResult = await generateInterviewQuestions(
       resume.parsedText,
@@ -55,9 +60,16 @@ async function getQuestionsByScreening(req, res, next) {
     const { screeningId } = req.params;
     const questions = await InterviewQuestion.findOne({ screeningId })
       .populate("resumeId", "candidateName candidateEmail")
-      .populate("jobId", "title company");
+      .populate("jobId", "title company createdBy");
     if (!questions)
       throw new CustomError("No questions found for this screening", 404);
+
+    // Ownership check via the populated jobId.createdBy
+    const jobCreator = questions.jobId?.createdBy?.toString();
+    if (req.user.role !== "admin" && jobCreator !== req.user.id) {
+      throw new CustomError("Access denied", 403);
+    }
+
     response(res, 200, { questions });
   } catch (err) {
     next(err);
@@ -91,8 +103,13 @@ async function generateBatch(req, res, next) {
     }
 
     // Confirm the job exists
-    const job = await Job.findById(jobId).select("title company description");
+    const job = await Job.findById(jobId).select("title company description createdBy");
     if (!job) throw new CustomError("Job not found", 404);
+
+    // Ownership check
+    if (req.user.role !== "admin" && job.createdBy?.toString() !== req.user.id) {
+      throw new CustomError("Access denied", 403);
+    }
 
     // Find qualifying screenings
     // Only candidates who have been scored AND scored >= minScore

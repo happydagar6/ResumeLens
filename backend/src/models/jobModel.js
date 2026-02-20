@@ -54,6 +54,11 @@ const jobSchema = new mongoose.Schema(
             ref: "User",
             default: null,
         },
+        // Array of User IDs — hiring managers assigned to review this job's candidates
+        assignedTo: {
+            type: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+            default: [],
+        },
     },
     { timestamps: true }
 );

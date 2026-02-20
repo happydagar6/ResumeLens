@@ -16,6 +16,7 @@ const screeningRoutes = require('./routes/screeningRoutes');
 const questionsRoutes = require('./routes/questionsRoutes');
 const pipelineRoutes = require('./routes/pipelineRoutes');
 const statsRoutes = require('./routes/statsRoutes');
+const usersRoutes = require('./routes/usersRoutes');
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.use("/api/screening", screeningRoutes);
 app.use("/api/questions", questionsRoutes);
 app.use("/api/pipeline", pipelineRoutes);
 app.use("/api/stats", statsRoutes);
+app.use("/api/users", usersRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);

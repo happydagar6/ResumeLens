@@ -65,3 +65,31 @@ export function useRunScreening() {
     },
   });
 }
+
+// ── PUT /api/screening/:id/decision ───────────────────────────────────────────
+// Records the hiring manager's manual decision on a candidate.
+// Caller: useMakeDecision().mutate({ screeningId, decision, notes?, jobId? })
+export function useMakeDecision() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ screeningId, decision, notes = "" }) =>
+      api.put(`/screening/${screeningId}/decision`, { decision, notes }),
+    onSuccess: (_, variables) => {
+      // Refresh the individual screening detail
+      queryClient.invalidateQueries({
+        queryKey: SCREENING_KEYS.detail(variables.screeningId),
+      });
+      // Refresh the job's full candidate list so the decision shows in the table
+      if (variables.jobId) {
+        queryClient.invalidateQueries({
+          queryKey: SCREENING_KEYS.byJob(variables.jobId),
+        });
+      }
+      toast.success("Decision saved successfully");
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to save decision");
+    },
+  });
+}

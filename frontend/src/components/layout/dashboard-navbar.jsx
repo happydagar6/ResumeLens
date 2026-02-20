@@ -38,6 +38,11 @@ export default function DashboardNavbar() {
             <div className="px-2 py-1.5">
               <p className="text-sm font-medium">{user.name}</p>
               <p className="text-xs text-muted-foreground">{user.email}</p>
+              {user.role && (
+                <span className="mt-1 inline-block rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium capitalize text-muted-foreground">
+                  {user.role.replace("_", " ")}
+                </span>
+              )}
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>

@@ -62,10 +62,13 @@ async function getScreeningResults(req, res, next) {
     try {
         const { jobId } = req.params;
 
-        // Verify the job exists and the requester owns it (or is admin)
+        // Verify the job exists; allow access to owner, admin, or assigned hiring manager
         const job = await Job.findById(jobId);
         if (!job) throw new CustomError("Job not found", 404);
-        if (req.user.role !== "admin" && job.createdBy?.toString() !== req.user.id) {
+
+        const isOwner = job.createdBy?.toString() === req.user.id;
+        const isAssigned = job.assignedTo?.some((uid) => uid.toString() === req.user.id);
+        if (req.user.role !== "admin" && !isOwner && !isAssigned) {
             throw new CustomError("Access denied", 403);
         }
 
@@ -82,12 +85,15 @@ async function getScreeningById(req, res, next) {
     try {
         const screening = await Screening.findById(req.params.id)
             .populate("resumeId", "candidateName candidateEmail fileName parsedText")
-            .populate("jobId", "title company description createdBy");
+            .populate("jobId", "title company description createdBy assignedTo")
+            .populate("decidedBy", "name email");
         if (!screening) throw new CustomError("Screening result not found", 404);
 
-        // Ownership check via the populated jobId.createdBy
-        const jobCreator = screening.jobId?.createdBy?.toString();
-        if (req.user.role !== "admin" && jobCreator !== req.user.id) {
+        // Allow access to the job owner, admin, or any assigned hiring manager
+        const job = screening.jobId;
+        const isOwner = job?.createdBy?.toString() === req.user.id;
+        const isAssigned = job?.assignedTo?.some((uid) => uid.toString() === req.user.id);
+        if (req.user.role !== "admin" && !isOwner && !isAssigned) {
             throw new CustomError("Access denied", 403);
         }
 
@@ -97,4 +103,55 @@ async function getScreeningById(req, res, next) {
     }
 }
 
-module.exports = { screenResume, getScreeningResults, getScreeningById };
+// ─────────────────────────────────────────────────────────────────────────────
+// PUT /api/screening/:id/decision
+// Body: { decision: string, notes?: string }
+//
+// Records the hiring manager's manual decision on a screened candidate.
+// Allowed roles: hiring_manager (if assigned), recruiter (job owner), admin.
+// ─────────────────────────────────────────────────────────────────────────────
+async function makeDecision(req, res, next) {
+    try {
+        const { decision, notes = "" } = req.body;
+
+        const validDecisions = ["shortlisted", "rejected", "on_hold", "offered"];
+        if (!decision || !validDecisions.includes(decision)) {
+            throw new CustomError(
+                `decision must be one of: ${validDecisions.join(", ")}`,
+                400
+            );
+        }
+
+        // Load screening with job details for the access check
+        const screening = await Screening.findById(req.params.id).populate(
+            "jobId",
+            "createdBy assignedTo"
+        );
+        if (!screening) throw new CustomError("Screening result not found", 404);
+
+        const job = screening.jobId;
+        const isOwner = job?.createdBy?.toString() === req.user.id;
+        const isAssigned = job?.assignedTo?.some((uid) => uid.toString() === req.user.id);
+        if (req.user.role !== "admin" && !isOwner && !isAssigned) {
+            throw new CustomError("Access denied", 403);
+        }
+
+        screening.hiringManagerDecision = decision;
+        screening.decidedBy = req.user.id;
+        screening.decidedAt = new Date();
+        screening.notes = notes;
+        await screening.save();
+
+        // Re-fetch with all populated fields for the response
+        const updated = await Screening.findById(screening._id)
+            .populate("resumeId", "candidateName candidateEmail fileName")
+            .populate("jobId", "title company description createdBy assignedTo")
+            .populate("decidedBy", "name email");
+
+        response(res, 200, { screening: updated }, "Decision saved successfully");
+    } catch (err) {
+        next(err);
+    }
+}
+
+module.exports = { screenResume, getScreeningResults, getScreeningById, makeDecision };

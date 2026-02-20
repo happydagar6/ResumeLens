@@ -1,8 +1,10 @@
 ﻿"use client";
 
+import { useState } from "react";
 import { useParams } from "next/navigation";
-import { useScreening } from "@/hooks/use-screening";
+import { useScreening, useMakeDecision } from "@/hooks/use-screening";
 import { useQuestions, useGenerateQuestions } from "@/hooks/use-questions";
+import { usePermissions } from "@/hooks/use-permissions";
 import ScoreGauge from "@/components/dashboard/score-gauge";
 import SkillsDisplay from "@/components/dashboard/skills-display";
 import QuestionsDisplay from "@/components/dashboard/questions-display";
@@ -11,8 +13,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ArrowLeft, Brain, Loader2, ThumbsUp, ThumbsDown, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Brain, Loader2, ThumbsUp, ThumbsDown, AlertTriangle, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
 const recommendationLabels = {
@@ -33,6 +36,13 @@ export default function ScreeningDetailPage() {
 
   // â”€â”€ Mutations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const generateMutation = useGenerateQuestions();
+
+  // Permissions + decision mutation
+  const { canMakeDecision, canGenerateQuestions } = usePermissions();
+  const decisionMutation = useMakeDecision();
+
+  // Local state for notes textarea
+  const [decisionNotes, setDecisionNotes] = useState("");
 
   if (screeningLoading || questionsLoading) return <LoadingSpinner />;
   if (!screening) return <p className="text-muted-foreground">Screening not found.</p>;
@@ -151,12 +161,80 @@ export default function ScreeningDetailPage() {
 
       <Separator />
 
+      {/* Hiring Manager Decision */}
+      {canMakeDecision && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">Hiring Manager Decision</h2>
+
+          {/* Show current decision if one exists */}
+          {screening.hiringManagerDecision && (
+            <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-4 py-3">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <span className="text-sm font-medium capitalize">
+                Current decision:{" "}
+                <span className="text-primary">
+                  {screening.hiringManagerDecision.replace("_", " ")}
+                </span>
+              </span>
+              {screening.decidedBy && (
+                <span className="ml-auto text-xs text-muted-foreground">
+                  by {screening.decidedBy.name}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Decision buttons */}
+          <div className="flex flex-wrap gap-2">
+            {[
+              { value: "shortlisted", label: "Shortlist", variant: "default" },
+              { value: "offered", label: "Offer", variant: "default" },
+              { value: "on_hold", label: "On Hold", variant: "secondary" },
+              { value: "rejected", label: "Reject", variant: "destructive" },
+            ].map((opt) => (
+              <Button
+                key={opt.value}
+                variant={opt.variant}
+                size="sm"
+                disabled={decisionMutation.isPending}
+                onClick={() =>
+                  decisionMutation.mutate({
+                    screeningId,
+                    decision: opt.value,
+                    notes: decisionNotes,
+                    jobId: job?._id,
+                  })
+                }
+              >
+                {opt.label}
+              </Button>
+            ))}
+          </div>
+
+          {/* Optional notes */}
+          <Textarea
+            placeholder="Add notes (optional)..."
+            value={decisionNotes}
+            onChange={(e) => setDecisionNotes(e.target.value)}
+            rows={3}
+            className="resize-none"
+          />
+          {screening.notes && !decisionNotes && (
+            <p className="text-xs text-muted-foreground italic">
+              Previous notes: {screening.notes}
+            </p>
+          )}
+        </div>
+      )}
+
+      <Separator />
+
       {/* Interview Questions */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Interview Questions</h2>
-          {/* Only show generate button when no questions exist yet */}
-          {!questions && (
+          {/* Only show generate button when no questions exist yet and user has permission */}
+          {!questions && canGenerateQuestions && (
             <Button
               onClick={() => generateMutation.mutate({ screeningId })}
               disabled={generateMutation.isPending}

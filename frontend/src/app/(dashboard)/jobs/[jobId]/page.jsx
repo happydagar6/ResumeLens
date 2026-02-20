@@ -1,11 +1,14 @@
 ﻿"use client";
 
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { useJob, useDeleteJob } from "@/hooks/use-jobs";
+import { useJob, useDeleteJob, useAssignHiringManager } from "@/hooks/use-jobs";
 import { useResumesByJob, useDeleteResume } from "@/hooks/use-resume";
 import { useRunScreening } from "@/hooks/use-screening";
 import { RESUME_KEYS } from "@/hooks/use-resume";
+import { usePermissions } from "@/hooks/use-permissions";
+import { useHiringManagers } from "@/hooks/use-users";
 import ResumeUpload from "@/components/dashboard/resume-upload";
 import ResumeCard from "@/components/dashboard/resume-card";
 import { LoadingSpinner } from "@/components/common/loading-state";
@@ -23,7 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2, BarChart3, MapPin, Clock, Pencil } from "lucide-react";
+import { Trash2, BarChart3, MapPin, Clock, Pencil, UserPlus, X, Users } from "lucide-react";
 import Link from "next/link";
 
 export default function JobDetailPage() {
@@ -33,11 +36,18 @@ export default function JobDetailPage() {
   // â”€â”€ Data fetching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const { job, isLoading: jobLoading } = useJob(jobId);
   const { resumes, isLoading: resumesLoading } = useResumesByJob(jobId);
+  const { hiringManagers } = useHiringManagers();
 
-  // â”€â”€ Mutations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const deleteJobMutation = useDeleteJob();
   const deleteResumeMutation = useDeleteResume(jobId);
   const screenMutation = useRunScreening();
+  const assignHMMutation = useAssignHiringManager(jobId);
+
+  // Permissions
+  const { canEditJob, canDeleteJob, canUploadResume, canRunScreening, canAssignHiringManager } = usePermissions();
+
+  // State
+  const [showAssignPanel, setShowAssignPanel] = useState(false);
 
   const isLoading = jobLoading || resumesLoading;
 
@@ -77,39 +87,101 @@ export default function JobDetailPage() {
               Screening Results
             </Link>
           </Button>
-          <Button variant="outline" asChild>
-            <Link href={`/jobs/${jobId}/edit`}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit
-            </Link>
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="ghost" className="text-destructive">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Job?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will permanently delete this job posting. This action cannot be
-                  undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => deleteJobMutation.mutate(jobId)}
-                  disabled={deleteJobMutation.isPending}
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          {canEditJob && (
+            <Button variant="outline" asChild>
+              <Link href={`/jobs/${jobId}/edit`}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
+              </Link>
+            </Button>
+          )}
+          {canAssignHiringManager && (
+            <Button variant="outline" onClick={() => setShowAssignPanel((v) => !v)}>
+              <Users className="mr-2 h-4 w-4" />
+              Assign HM
+            </Button>
+          )}
+          {canDeleteJob && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" className="text-destructive">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Job?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete this job posting. This action cannot be
+                    undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => deleteJobMutation.mutate(jobId)}
+                    disabled={deleteJobMutation.isPending}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
       </div>
+
+      {/* Assigned Hiring Managers */}
+      {job.assignedTo?.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <span className="text-xs text-muted-foreground self-center">Assigned HMs:</span>
+          {job.assignedTo.map((hm) => (
+            <Badge key={hm._id} variant="secondary" className="gap-1">
+              <UserPlus className="h-3 w-3" />
+              {hm.name}
+              {canAssignHiringManager && (
+                <button
+                  className="ml-1 hover:text-destructive"
+                  onClick={() => assignHMMutation.mutate({ userId: hm._id, action: "remove" })}
+                  aria-label={`Remove ${hm.name}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </Badge>
+          ))}
+        </div>
+      )}
+
+      {/* Assign Hiring Manager Panel */}
+      {canAssignHiringManager && showAssignPanel && (
+        <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+          <h3 className="text-sm font-semibold">Assign Hiring Manager</h3>
+          {hiringManagers.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No hiring manager accounts found.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {hiringManagers
+                .filter((hm) => !job.assignedTo?.some((a) => a._id === hm._id))
+                .map((hm) => (
+                  <Button
+                    key={hm._id}
+                    variant="outline"
+                    size="sm"
+                    disabled={assignHMMutation.isPending}
+                    onClick={() => {
+                      assignHMMutation.mutate({ userId: hm._id, action: "add" });
+                      setShowAssignPanel(false);
+                    }}
+                  >
+                    <UserPlus className="mr-1 h-3 w-3" />
+                    {hm.name}
+                  </Button>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Description */}
       <div className="space-y-2">
@@ -144,15 +216,20 @@ export default function JobDetailPage() {
       <Separator />
 
       {/* Resume Upload â€” onUploaded invalidates the resumes cache directly */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Upload Resume</h2>
-        <ResumeUpload
-          jobId={jobId}
-          onUploaded={() =>
-            queryClient.invalidateQueries({ queryKey: RESUME_KEYS.byJob(jobId) })
-          }
-        />
-      </div>
+      {canUploadResume && (
+        <>
+          <Separator />
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Upload Resume</h2>
+            <ResumeUpload
+              jobId={jobId}
+              onUploaded={() =>
+                queryClient.invalidateQueries({ queryKey: RESUME_KEYS.byJob(jobId) })
+              }
+            />
+          </div>
+        </>
+      )}
 
       <Separator />
 
@@ -176,11 +253,15 @@ export default function JobDetailPage() {
                   screenMutation.isPending &&
                   screenMutation.variables?.resumeId === resume._id
                 }
-                onScreen={(resumeId) =>
-                  screenMutation.mutate({ resumeId, jobId })
+                onScreen={
+                  canRunScreening
+                    ? (resumeId) => screenMutation.mutate({ resumeId, jobId })
+                    : undefined
                 }
-                onDelete={(resumeId) =>
-                  deleteResumeMutation.mutate(resumeId)
+                onDelete={
+                  canDeleteJob
+                    ? (resumeId) => deleteResumeMutation.mutate(resumeId)
+                    : undefined
                 }
               />
             ))}

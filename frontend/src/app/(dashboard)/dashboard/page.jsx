@@ -2,6 +2,7 @@
 
 import { useOverviewStats } from "@/hooks/use-stats";
 import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import StatsCards from "@/components/dashboard/stats-cards";
 import JobCard from "@/components/dashboard/job-card";
 import { CardSkeleton } from "@/components/common/loading-state";
@@ -11,6 +12,7 @@ import Link from "next/link";
 
 export default function DashboardHome() {
   const { user } = useAuth();
+  const { canCreateJob } = usePermissions();
   const { stats, isLoading, isError } = useOverviewStats();
 
   // Build the 4 stat cards from the real API response shape:
@@ -56,12 +58,14 @@ export default function DashboardHome() {
             Here&apos;s an overview of your recruitment pipeline.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/jobs/new">
-            <Plus className="mr-2 h-4 w-4" />
-            New Job
-          </Link>
-        </Button>
+        {canCreateJob && (
+          <Button asChild>
+            <Link href="/jobs/new">
+              <Plus className="mr-2 h-4 w-4" />
+              New Job
+            </Link>
+          </Button>
+        )}
       </div>
 
       {/* Stats Cards */}

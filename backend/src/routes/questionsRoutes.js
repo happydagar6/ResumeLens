@@ -13,8 +13,8 @@ router.use(authMiddleware);
 // READ: any authenticated user
 router.get("/screening/:screeningId", getQuestionsByScreening);
 
-// WRITE: only recruiters and admins can generate questions
-router.post("/generate", authorize("recruiter", "admin"), generateQuestions);
-router.post("/generate-batch", authorize("recruiter", "admin"), generateBatch);
+// WRITE: recruiters, hiring managers, and admins can generate questions
+router.post("/generate", authorize("recruiter", "admin", "hiring_manager"), generateQuestions);
+router.post("/generate-batch", authorize("recruiter", "admin", "hiring_manager"), generateBatch);
 
 module.exports = router;

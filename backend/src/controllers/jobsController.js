@@ -43,9 +43,17 @@ async function createJob(req, res, next) {
 
 async function getJobs(req, res, next) {
     try {
-        // Admins see every job in the system.
-        // Everyone else only sees jobs THEY created.
-        const filter = req.user.role === "admin" ? {} : { createdBy: req.user.id };
+        let filter;
+        if (req.user.role === "admin") {
+            // Admins see every job in the system
+            filter = {};
+        } else if (req.user.role === "hiring_manager") {
+            // Hiring managers only see jobs they have been assigned to
+            filter = { assignedTo: req.user.id };
+        } else {
+            // Recruiters see only the jobs they created
+            filter = { createdBy: req.user.id };
+        }
         const jobs = await Job.find(filter).sort({ createdAt: -1 });
         response(res, 200, { jobs });
     } catch (err) {
@@ -55,11 +63,16 @@ async function getJobs(req, res, next) {
 
 async function getJobById(req, res, next) {
     try {
-        const job = await Job.findById(req.params.id);
+        // Populate assignedTo so the frontend can display assigned hiring managers
+        const job = await Job.findById(req.params.id)
+            .populate("assignedTo", "name email role");
         if (!job) throw new CustomError("Job not found", 404);
 
-        // Ownership check: only the creator or an admin can view this job
-        if (req.user.role !== "admin" && job.createdBy?.toString() !== req.user.id) {
+        // Access: creator, admin, or an assigned hiring manager
+        const isOwner = job.createdBy?.toString() === req.user.id;
+        const isAssigned = job.assignedTo?.some((u) => u._id.toString() === req.user.id);
+
+        if (req.user.role !== "admin" && !isOwner && !isAssigned) {
             throw new CustomError("Access denied", 403);
         }
 
@@ -108,4 +121,61 @@ async function deleteJob(req, res, next) {
     }
 }
 
-module.exports = { createJob, getJobs, getJobById, updateJob, deleteJob };
+// ─────────────────────────────────────────────────────────────────────────────
+// PUT /api/jobs/:id/assign
+// Body: { userId: string, action?: "add" | "remove" }
+//
+// Assigns (or removes) a hiring manager to/from a job.
+// Only the job creator or admin can assign.
+// The target user must have role = "hiring_manager".
+// ─────────────────────────────────────────────────────────────────────────────
+async function assignJob(req, res, next) {
+    try {
+        const { userId, action = "add" } = req.body;
+        if (!userId) throw new CustomError("userId is required", 400);
+        if (!["add", "remove"].includes(action)) {
+            throw new CustomError('action must be "add" or "remove"', 400);
+        }
+
+        // Only the job creator or admin can assign hiring managers
+        const filter =
+            req.user.role === "admin"
+                ? { _id: req.params.id }
+                : { _id: req.params.id, createdBy: req.user.id };
+
+        const job = await Job.findOne(filter);
+        if (!job) throw new CustomError("Job not found or access denied", 404);
+
+        // Verify the user being assigned exists and is a hiring_manager
+        const User = require("../models/userModel");
+        const targetUser = await User.findById(userId).select("name email role");
+        if (!targetUser) throw new CustomError("User not found", 404);
+        if (targetUser.role !== "hiring_manager") {
+            throw new CustomError("Only users with role 'hiring_manager' can be assigned", 400);
+        }
+
+        if (action === "remove") {
+            job.assignedTo = job.assignedTo.filter((id) => id.toString() !== userId);
+        } else {
+            // Prevent duplicates
+            if (!job.assignedTo.some((id) => id.toString() === userId)) {
+                job.assignedTo.push(userId);
+            }
+        }
+
+        await job.save();
+
+        // Return the updated job with populated assignedTo for the frontend
+        const updated = await Job.findById(job._id).populate("assignedTo", "name email role");
+        response(
+            res,
+            200,
+            { job: updated },
+            action === "remove" ? "Hiring manager removed" : "Hiring manager assigned"
+        );
+    } catch (err) {
+        next(err);
+    }
+}
+
+module.exports = { createJob, getJobs, getJobById, updateJob, deleteJob, assignJob };

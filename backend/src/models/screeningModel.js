@@ -48,7 +48,27 @@ const screeningSchema = new mongoose.Schema(
         validationFlags: {
             type: [String],
             default: [],
-        }
+        },
+        // ── Hiring Manager Decision Layer ─────────────────────────────────────
+        // The AI gives a recommendation; the hiring manager makes the final call.
+        hiringManagerDecision: {
+            type: String,
+            enum: ["shortlisted", "rejected", "on_hold", "offered", null],
+            default: null,
+        },
+        decidedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null,
+        },
+        decidedAt: {
+            type: Date,
+            default: null,
+        },
+        notes: {
+            type: String,
+            default: "",
+        },
     },
     { timestamps: true }
 );

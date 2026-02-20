@@ -1,7 +1,7 @@
 // src/routes/screeningRoutes.js
 
 const express = require("express");
-const { screenResume, getScreeningResults, getScreeningById } = require("../controllers/screeningController");
+const { screenResume, getScreeningResults, getScreeningById, makeDecision } = require("../controllers/screeningController");
 const authMiddleware = require("../middleware/authMiddleware");
 const authorize = require("../middleware/authorize");
 
@@ -16,5 +16,8 @@ router.get("/:id", getScreeningById);
 
 // WRITE: only recruiters and admins can trigger screening
 router.post("/", authorize("recruiter", "admin"), screenResume);
+
+// DECISION: hiring managers, recruiters, and admins can record a decision
+router.put("/:id/decision", authorize("hiring_manager", "recruiter", "admin"), makeDecision);
 
 module.exports = router;

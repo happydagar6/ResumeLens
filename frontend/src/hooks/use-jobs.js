@@ -100,3 +100,27 @@ export function useDeleteJob() {
     },
   });
 }
+
+// ── PUT /api/jobs/:id/assign ───────────────────────────────────────────────────
+// Assigns or removes a hiring manager from a job.
+// Caller: useAssignHiringManager(jobId).mutate({ userId, action: "add"|"remove" })
+export function useAssignHiringManager(jobId) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ userId, action = "add" }) =>
+      api.put(`/jobs/${jobId}/assign`, { userId, action }),
+    onSuccess: (_, variables) => {
+      // Refresh the job detail so assignedTo list is up to date
+      queryClient.invalidateQueries({ queryKey: JOB_KEYS.detail(jobId) });
+      toast.success(
+        variables.action === "remove"
+          ? "Hiring manager removed"
+          : "Hiring manager assigned"
+      );
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to update assignment");
+    },
+  });
+}

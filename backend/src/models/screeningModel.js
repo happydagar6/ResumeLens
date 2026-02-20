@@ -45,6 +45,10 @@ const screeningSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.Mixed,
             default: {},
         },
+        validationFlags: {
+            type: [String],
+            default: [],
+        }
     },
     { timestamps: true }
 );

@@ -23,6 +23,7 @@ const Screening = require("../models/screeningModel");
 const { extractEntities } = require("../services/entityExtractorAgent");
 const { analyzeJD } = require("../services/jdAnalyzerAgent");
 const { scoreResume } = require("../services/resumeScorerAgent");
+const { crossValidateScoringResult } = require("../services/validationService"); // NEW: validation function to cross-check scoring results
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. STATE SCHEMA
@@ -66,6 +67,12 @@ const GraphState = Annotation.Root({
   screeningId: Annotation({
     reducer: (current, update) => update ?? current,
     default: () => null,
+  }),
+
+  // Quality flags from cross-validation
+  validationFlags: Annotation({
+    reducer: (current, update) => update ?? current,
+    default: () => [],
   }),
   // ── Error & status tracking ───────────────────────────────────────────────
   // errors: accumulates across all nodes (never overwritten, only appended)
@@ -230,6 +237,47 @@ async function scoreResumeNode(state) {
     }
 }
 
+// Node 4b: validateResults  (Phase 8 — Quality Agent)
+// Runs cross-validation checks on the AI scoring output.
+// NON-FATAL: flags are warnings, not errors. The pipeline always continues.
+// Flags are stored in state.validationFlags and eventually saved to the DB.
+
+async function validateResults(state) {
+    try {
+        // Nothing to validate if scoring failed (scoringResult would be null)
+        if (!state.scoringResult) {
+            console.log("[Graph] Validation skipped: no scoring result to validate");
+            return { validationFlags: [] };
+        }
+
+        const { flags, passed, flagCount } = crossValidateScoringResult(
+            state.scoringResult,
+            state.resume.parsedText
+        );
+
+        if (passed) {
+            console.log("[Graph] Validation passed: no issues detected with scoring result");
+        } else {
+            console.warn(`[Graph] Validation failed: ${flagCount} issues detected`);
+        }
+
+        // Store flags in state - they will be presisted by saveResults
+        // Also append to state.errors as non-fatal warnings so they appear in API response
+        return {
+            validationFlags: flags,
+            errors: flags.length > 0
+                ? flags.map((f) => `QA_FLAG: ${f}`)
+                : [],
+        };
+    } catch (error) {
+        // Never block the pipeline - validation failure is not a fatal error
+        console.error("[Graph] validateResults node threw (non-fatal):", error.message);
+        return {
+            validationFlags: [`VALIDATION_ERROR: ${error.message}`],
+        };
+    }
+}
+
 // Node 5: saveResults
 // Persists the Screening document and updates the resume status.
 // This is the only node that writes to the Screening collection.
@@ -251,6 +299,7 @@ async function saveResults(state) {
                 weaknesses: r.weaknesses,
                 recommendation: r.recommendation,
                 rawAIResponse: r,
+                validationFlags: state.validationFlags || [],
             },
             { upsert: true, new: true, runValidators: true }
         );
@@ -298,6 +347,7 @@ const workflow = new StateGraph(GraphState)
     .addNode("ensureEntities", ensureEntities)
     .addNode("ensureAnalyzedJD", ensureAnalyzedJD)
     .addNode("scoreResume", scoreResumeNode)
+    .addNode("validateResults", validateResults) // NEW validation node after scoring
     .addNode("saveResults", saveResults)
 
     // Entry point
@@ -317,12 +367,16 @@ const workflow = new StateGraph(GraphState)
 
     // After scoreResume: abort if scoring itself failed
     .addConditionalEdges("scoreResume", routeOrAbort, {
-        continue: "saveResults",
+        continue: "validateResults",
         abort: END,
     })
 
-    // saveResults → END
+    // validateResults → saveResults (always continue — non-fatal node, even if validation fails) ──
+    .addEdge("validateResults", "saveResults")
+
+    // saveResults → END (pipeline complete) ───────────────────────────────────────
     .addEdge("saveResults", END);
+
 
 
 // Compile once at module load - reused for every pipline invocation

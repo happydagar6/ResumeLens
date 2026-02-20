@@ -1,24 +1,59 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
+import { useUIStore } from "@/store/ui-store";
 import DashboardNavbar from "@/components/layout/dashboard-navbar";
 import Sidebar, { MobileSidebar } from "@/components/layout/sidebar";
+import { LoadingSpinner } from "@/components/common/loading-state";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 
 export default function DashboardLayout({ children }) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const { sidebarOpen, actions } = useUIStore();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+    }
+  }, [loading, user, router]);
+
+  // Show spinner while checking auth
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  // Don't render children until user is confirmed (prevents flash of protected content)
+  if (!user) return null;
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-sm">
         <div className="flex h-14 items-center px-4 gap-4">
-          <Sheet>
+          <Sheet
+            open={sidebarOpen}
+            onOpenChange={actions.setSidebarOpen}
+          >
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden"
+                onClick={actions.toggleSidebar}
+              >
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-60 p-0">
-              <MobileSidebar />
+              <MobileSidebar onClose={() => actions.setSidebarOpen(false)} />
             </SheetContent>
           </Sheet>
           <div className="flex-1" />

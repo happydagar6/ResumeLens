@@ -1,47 +1,59 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api } from "@/lib/api-client";
+import { useOverviewStats } from "@/hooks/use-stats";
+import { useAuth } from "@/hooks/use-auth";
 import StatsCards from "@/components/dashboard/stats-cards";
-import { LoadingSpinner } from "@/components/common/loading-state";
+import JobCard from "@/components/dashboard/job-card";
+import { CardSkeleton } from "@/components/common/loading-state";
 import { Button } from "@/components/ui/button";
-import { Briefcase, FileText, Brain, Plus } from "lucide-react";
+import { Briefcase, FileText, Brain, BarChart3, Plus } from "lucide-react";
 import Link from "next/link";
 
 export default function DashboardHome() {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const { stats, isLoading, isError } = useOverviewStats();
 
-  useEffect(() => {
-    async function fetchStats() {
-      try {
-        const jobsData = await api.get("/jobs");
-        const jobs = jobsData.data?.jobs || [];
-
-        setStats([
-          { label: "Total Jobs", value: jobs.length, icon: Briefcase },
-          { label: "Open Jobs", value: jobs.filter((j) => j.status === "open").length, icon: Briefcase },
-          { label: "Draft Jobs", value: jobs.filter((j) => j.status === "draft").length, icon: FileText },
-          { label: "Closed Jobs", value: jobs.filter((j) => j.status === "closed").length, icon: Brain },
-        ]);
-      } catch {
-        setStats([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchStats();
-  }, []);
-
-  if (loading) return <LoadingSpinner />;
+  // Build the 4 stat cards from the real API response shape:
+  // stats.jobs    → { total, open, closed, draft }
+  // stats.resumes → { total, screened, screeningRate }
+  // stats.screening → { totalScreenings, avgScore }
+  const statCards = stats
+    ? [
+        {
+          label: "Total Jobs",
+          value: stats.jobs.total,
+          icon: Briefcase,
+        },
+        {
+          label: "Open Jobs",
+          value: stats.jobs.open,
+          icon: Briefcase,
+        },
+        {
+          label: "Resumes Screened",
+          value: stats.resumes.screened,
+          icon: Brain,
+        },
+        {
+          label: "Avg Match Score",
+          value: stats.screening.avgScore > 0
+            ? `${stats.screening.avgScore}/100`
+            : "—",
+          icon: BarChart3,
+        },
+      ]
+    : [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Welcome back{user?.name ? `, ${user.name}` : ""}
+          </h1>
           <p className="text-muted-foreground">
-            Welcome to RecruitAI. Manage your recruitment pipeline.
+            Here&apos;s an overview of your recruitment pipeline.
           </p>
         </div>
         <Button asChild>
@@ -52,7 +64,36 @@ export default function DashboardHome() {
         </Button>
       </div>
 
-      {stats && <StatsCards stats={stats} />}
+      {/* Stats Cards */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
+      ) : isError ? (
+        <p className="text-sm text-destructive">Failed to load stats.</p>
+      ) : (
+        <StatsCards stats={statCards} />
+      )}
+
+      {/* Recent Jobs */}
+      {!isLoading && stats?.recentJobs?.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Recent Jobs</h2>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/jobs">View all</Link>
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {stats.recentJobs.map((job) => (
+              <JobCard key={job._id} job={job} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

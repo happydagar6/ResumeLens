@@ -92,4 +92,48 @@ async function me(req, res, next) {
     }
 }
 
-module.exports = { signup, login, logout, me };
+async function updateProfile(req, res, next) {
+    try {
+        const updateSchema = z.object({
+            name: z.string().min(2).optional(),
+            company: z.string().optional(),
+        });
+        const data = updateSchema.parse(req.body);
+
+        const user = await User.findByIdAndUpdate(
+            req.user.id,
+            { $set: data },
+            { new: true, runValidators: true }
+        );
+        if (!user) throw new CustomError("User not found", 404);
+        response(res, 200, { user: { id: user._id, name: user.name, email: user.email, company: user.company, role: user.role } });
+    } catch (error) {
+        next(error);
+    }
+}
+
+async function updatePassword(req, res, next) {
+    try {
+        const passwordSchema = z.object({
+            currentPassword: z.string().min(6),
+            newPassword: z.string().min(6),
+            newPassword: z.string().min(6, "New password must be at least 6 characters"),
+        });
+        const { currentPassword, newPassword } = passwordSchema.parse(req.body); // Validate input
+
+        const user = await User.findById(req.user.id).select("+password");
+        if(!user) throw new CustomError("User not found", 404);
+
+        const isMatch = await user.comparePassword(currentPassword);
+        if (!isMatch) throw new CustomError("Current password is incorrect", 401);
+
+        user.password = newPassword;
+        await user.save();
+
+        response(res, 200, null, "Password updated successfully");
+    } catch (error) {
+        next(error);
+    }
+}
+
+module.exports = { signup, login, logout, me, updateProfile, updatePassword };

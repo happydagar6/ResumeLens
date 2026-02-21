@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Briefcase, Plus } from "lucide-react";
+import { LayoutDashboard, Briefcase, Plus, Settings } from "lucide-react";
 import { usePermissions } from "@/hooks/use-permissions";
 
 function NavLinks({ onClick }) {
@@ -20,6 +20,7 @@ function NavLinks({ onClick }) {
       show: true,
     },
     { href: "/jobs/new", label: "New Job", icon: Plus, exact: true, show: canCreateJob },
+    { href: "/settings", label: "Settings", icon: Settings, exact: false, show: true },
   ];
 
   return links

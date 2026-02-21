@@ -73,4 +73,9 @@ const screeningSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
+// Unique: one screening per resume
+screeningSchema.index({ resumeId: 1 }, { unique: true }); // Ensure one screening per resume
+
+// fast lookup of all candidates for a job, sorted by score
+screeningSchema.index({ jobId: 1, overallScore: -1 });
 module.exports = mongoose.model("Screening", screeningSchema);

@@ -54,8 +54,48 @@ async function getJobs(req, res, next) {
             // Recruiters see only the jobs they created
             filter = { createdBy: req.user.id };
         }
-        const jobs = await Job.find(filter).sort({ createdAt: -1 });
-        response(res, 200, { jobs });
+
+        // Search & Filtering
+        const { search, status, type, sort } = req.query;
+
+        if (status) filter.status = status; // Filter by job status
+        if (type) filter.type = type; // Filter by job type
+
+        if (search) {
+            filter.$or = [
+                {title: { $regex: search, $options: "i" }},
+                {company: { $regex: search, $options: "i" }},
+                {description: { $regex: search, $options: "i" }},
+            ];
+        }
+
+        // Pagination
+        const page = Math.max(1, parseInt(req.query.page) || 1); // Default to page 1
+        const limit = Math.min(100, parseInt(req.query.limit) || 20); // Default to 20 per page, max 100
+        const skip = (page - 1) * limit; // Calculate how many records to skip
+
+        // Sort
+        let sortOption;
+        if (sort === "oldest") {
+            sortOption = { createdAt: 1 };
+        } else {
+            sortOption = { createdAt: -1 }; // Default to newest first
+        }
+
+        const [jobs, total] = await Promise.all([
+            Job.find(filter).sort(sortOption).skip(skip).limit(limit),
+            Job.countDocuments(filter),
+        ]);
+
+        response(res, 200, {
+            jobs,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit),
+            },
+        });
     } catch (err) {
         next(err);
     }

@@ -24,6 +24,11 @@ async function screenResume(req, res, next) {
             throw new CustomError("Access denied", 403);
         }
 
+        const existingScreening = await Screening.findOne({ resumeId: resume._id });
+        if (existingScreening) {
+            return response(res, 200, { screening: existingScreening }, "Screening already exists for this resume");
+        }
+
         // Run AI scoring with extracted entities for better accuracy
         const aiResult = await scoreResume(
             resume.parsedText,

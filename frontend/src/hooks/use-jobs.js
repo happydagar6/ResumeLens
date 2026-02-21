@@ -8,26 +8,33 @@ import { toast } from "sonner";
 
 export const JOB_KEYS = {
     all: ["jobs"],
+    list: (params) => ["jobs", "list", params], // For paginated/filtered lists, include params in key
     detail: (jobId) => ["jobs", jobId],
 };
 
 // Query Keys
 // GET /api/jobs - full lists of jobs for the logged in user
-export function useJobs() {
-    const { data, isLoading, isError, error } = useQuery({
-        queryKey: JOB_KEYS.all,
-        queryFn: () => api.get("/jobs"),
-    });
+export function useJobs(params = {}) {
+  const queryString = new URLSearchParams(
+    Object.entries(params).filter(([_, v]) => v !== "" && v !== undefined && v !== null)
+  ).toString();
 
-    return {
-        jobs: data?.data?.jobs ?? [],
-        isLoading,
-        isError,
-        error,
-    };
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: JOB_KEYS.list(params),
+    queryFn: () => api.get(`/jobs${queryString ? `?${queryString}` : ""}`),
+  });
+
+  return {
+    jobs: data?.data?.jobs ?? [],
+    pagination: data?.data?.pagination ?? null,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  }
 }
 
-// GET /api/jobs/:dd - details for a single job (including associated resumes)
+// GET /api/jobs/:id - details for a single job (including associated resumes)
 export function useJob(jobId) {
     const { data, isLoading, isError, error } = useQuery({
         queryKey: JOB_KEYS.detail(jobId),

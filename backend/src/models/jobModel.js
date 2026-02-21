@@ -63,4 +63,11 @@ const jobSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
+jobSchema.index({ createdBy: 1, status: 1 }); // For efficient querying of a user's jobs by status
+jobSchema.index({ createdBy: 1, createdAt: -1 }); // For sorting a user's jobs by creation date
+jobSchema.index({ assignedTo: 1 }); // For finding jobs assigned to a specific user
+jobSchema.index({ title: "text", description: "text" }); // For text search on job title and description
+
+
+
 module.exports = mongoose.model("Job", jobSchema);

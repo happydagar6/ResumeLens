@@ -70,10 +70,13 @@ async function getResumesByJob(req, res, next) {
     try {
         const { jobId } = req.params;
 
-        // Verify the job exists and the requester owns it (or is admin)
+        // Verify the job exists; allow access to owner, admin, or assigned hiring manager
         const job = await Job.findById(jobId);
         if (!job) throw new CustomError("Job not found", 404);
-        if (req.user.role !== "admin" && job.createdBy?.toString() !== req.user.id) {
+
+        const isOwner = job.createdBy?.toString() === req.user.id;
+        const isAssigned = job.assignedTo?.some((uid) => uid.toString() === req.user.id);
+        if (req.user.role !== "admin" && !isOwner && !isAssigned) {
             throw new CustomError("Access denied", 403);
         }
 

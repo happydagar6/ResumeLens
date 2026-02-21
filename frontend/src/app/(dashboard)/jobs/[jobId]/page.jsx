@@ -33,21 +33,23 @@ export default function JobDetailPage() {
   const { jobId } = useParams();
   const queryClient = useQueryClient();
 
-  // â”€â”€ Data fetching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const { job, isLoading: jobLoading } = useJob(jobId);
-  const { resumes, isLoading: resumesLoading } = useResumesByJob(jobId);
-  const { hiringManagers } = useHiringManagers();
-
-  const deleteJobMutation = useDeleteJob();
-  const deleteResumeMutation = useDeleteResume(jobId);
-  const screenMutation = useRunScreening();
-  const assignHMMutation = useAssignHiringManager(jobId);
-
-  // Permissions
+  // Permissions must come first — used to conditionally enable queries below
   const { canEditJob, canDeleteJob, canUploadResume, canRunScreening, canAssignHiringManager } = usePermissions();
 
   // State
   const [showAssignPanel, setShowAssignPanel] = useState(false);
+
+  // Data fetching
+  const { job, isLoading: jobLoading } = useJob(jobId);
+  const { resumes, isLoading: resumesLoading } = useResumesByJob(jobId);
+  // Only fetch HM list when recruiter/admin (hiring managers cannot assign)
+  const { hiringManagers } = useHiringManagers({ enabled: canAssignHiringManager });
+
+  // Mutations
+  const deleteJobMutation = useDeleteJob();
+  const deleteResumeMutation = useDeleteResume(jobId);
+  const screenMutation = useRunScreening();
+  const assignHMMutation = useAssignHiringManager(jobId);
 
   const isLoading = jobLoading || resumesLoading;
 

@@ -21,7 +21,7 @@ const jobSchema = z.object({
 async function createJob(req, res, next) {
     try {
         const data = jobSchema.parse(req.body);
-        const job = new Job({ ...data, createdBy: req.user?.id || null });
+        const job = new Job({ ...data, createdBy: req.user?.id || null, organizationId: req.user.organizationId });
         await job.save();
 
         // NEW: Analyze the job description with AI (async, don't block response)
@@ -46,7 +46,7 @@ async function getJobs(req, res, next) {
         let filter;
         if (req.user.role === "admin") {
             // Admins see every job in the system
-            filter = {};
+            filter = { organizationId: req.user.organizationId }; // But still filter by organization
         } else if (req.user.role === "hiring_manager") {
             // Hiring managers only see jobs they have been assigned to
             filter = { assignedTo: req.user.id };

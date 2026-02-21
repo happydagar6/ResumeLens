@@ -1,7 +1,7 @@
 // src/routes/authRoutes.js
 
 const express = require("express");
-const { signup, login, logout, me, updateProfile, updatePassword } = require("../controllers/authController");
+const { signup, login, logout, me, updateProfile, updatePassword, getInviteCode } = require("../controllers/authController");
 const authMiddleware = require("../middleware/authMiddleware");
 
 const router = express.Router();
@@ -12,5 +12,6 @@ router.post("/logout", logout);
 router.get("/me", authMiddleware, me);
 router.put("/profile", authMiddleware, updateProfile);
 router.put("/password", authMiddleware, updatePassword);
+router.get("/invite-code", authMiddleware, authorize("recruiter", "admin"), getInviteCode);
 
 module.exports = router;

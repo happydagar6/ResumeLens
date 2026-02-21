@@ -5,6 +5,8 @@ const jwt = require('jsonwebtoken');
 const { response } = require('../utils/response');
 const { CustomError } = require('../utils/errors');
 const { z } = require('zod');
+const crypto = require('crypto');
+const Organization = require('../models/organizationModel');
 
 const signupSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
@@ -43,12 +45,57 @@ async function signup(req, res, next) {
         const user = new User({ name, email, password, company, role });
         await user.save();
 
+        if (role === "recruiter" || !role) {
+            // Recruiter creates a new org
+            const slug = company
+            ? company.toLowerCase().replace(/\s+/g, "-") + "-" + Date.now()
+            : "org-" + Date.now();
+
+            const org = new Organization({
+                name: company || "My Organization",
+                slug,
+                createdBy: user._id,
+                inviteCode: crypto.randomBytes(16).toString("hex"),
+            });
+            await org.save();
+            user.organizationId = org._id;
+            await user.save();
+        } else if (role === "hiring_manager") {
+            // HM joins via invite code
+            const { inviteCode } = req.body;
+            if (!inviteCode) throw new CustomError("Invite code is required for hiring managers", 400);
+            const org = await Organization.findOne({ inviteCode });
+            if (!org) throw new CustomError("Invalid invite code", 400);
+            user.organizationId = org._id;
+            await user.save();
+        } else {
+            throw new CustomError("Invalid role", 400);
+        };
+
+
         const token = generateToken(user._id, user.role);
         setTokenCookie(res, token);
 
         response(res, 201, { user: { id: user._id, name, email, company, role: user.role } }, "User created successfully");
     } catch (err) {
         next(err);
+    }
+}
+
+
+// GET /auth/invite-code
+// Returns the org's invite code — only recruiter/admin of that org can see it
+
+async function getInviteCode(req, res, next) {
+    try {
+        const org = await Organization.findById(req.user.organizationId);
+        if (!org) throw new CustomError("Organization not found", 404);
+        if (org.createdBy.toString() !== req.user.id && req.user.role !== "admin") {
+            throw new CustomError("Only the org owner can view the invite code", 403);
+        }
+        response(res, 200, { inviteCode: org.inviteCode, orgName: org.name });
+    } catch (error) {
+        next(error);
     }
 }
 
@@ -136,4 +183,4 @@ async function updatePassword(req, res, next) {
     }
 }
 
-module.exports = { signup, login, logout, me, updateProfile, updatePassword };
+module.exports = { signup, login, logout, me, updateProfile, updatePassword, getInviteCode };

@@ -11,7 +11,7 @@ const { response } = require("../utils/response");
 //   role  — filter by role enum ("recruiter" | "hiring_manager" | "admin")
 async function getUsers(req, res, next) {
     try {
-        const filter = {};
+        const filter = { organizationId: req.user.organizationId }; // Only return users from the same org
         if (req.query.role) {
             filter.role = req.query.role;
         }

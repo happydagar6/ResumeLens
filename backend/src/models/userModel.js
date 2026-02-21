@@ -33,6 +33,11 @@ const userSchema = new mongoose.Schema(
             enum: ["recruiter", "hiring_manager", "admin"],
             default: "recruiter",
         },
+        organizationId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Organization",
+            default: null,
+        }
     },
     { timestamps: true }
 );

@@ -3,6 +3,7 @@
 const express = require("express");
 const { signup, login, logout, me, updateProfile, updatePassword, getInviteCode } = require("../controllers/authController");
 const authMiddleware = require("../middleware/authMiddleware");
+const authorize = require("../middleware/authorize");
 
 const router = express.Router();
 

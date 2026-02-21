@@ -301,7 +301,7 @@ async function saveResults(state) {
                 rawAIResponse: r,
                 validationFlags: state.validationFlags || [],
             },
-            { upsert: true, new: true, runValidators: true }
+            { upsert: true, returnDocument: "after", runValidators: true }
         );
 
         // Update resume to "screened" status and clear any old errors

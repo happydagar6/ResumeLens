@@ -28,6 +28,7 @@ export default function SignupPage() {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(signupSchema),
@@ -37,8 +38,11 @@ export default function SignupPage() {
       password: "",
       company: "",
       role: "recruiter",
+      inviteCode: "",
     },
   });
+
+  const selectedRole = watch("role");
 
   const onSubmit = async (data) => {
     try {
@@ -125,6 +129,24 @@ export default function SignupPage() {
             </SelectContent>
           </Select>
         </div>
+
+        {/* Invite code — only shown when hiring_manager is selected */}
+        {selectedRole === "hiring_manager" && (
+          <div className="space-y-2">
+            <Label htmlFor="inviteCode">Organization Invite Code</Label>
+            <Input
+              id="inviteCode"
+              placeholder="Paste the invite code from your recruiter"
+              {...register("inviteCode")}
+            />
+            {errors.inviteCode && (
+              <p className="text-xs text-destructive">{errors.inviteCode.message}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Ask your recruiter to share the invite code from their Settings page.
+            </p>
+          </div>
+        )}
 
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

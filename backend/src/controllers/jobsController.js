@@ -136,7 +136,7 @@ async function updateJob(req, res, next) {
                 : { _id: req.params.id, createdBy: req.user.id };
 
         const job = await Job.findOneAndUpdate(filter, data, {
-            new: true,
+            returnDocument: "after",
             runValidators: true,
         });
         if (!job) throw new CustomError("Job not found or access denied", 404);

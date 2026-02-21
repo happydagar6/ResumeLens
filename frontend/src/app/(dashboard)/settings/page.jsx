@@ -3,14 +3,27 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useUpdateProfile, useUpdatePassword } from "@/hooks/use-profile";
+import { useInviteCode } from "@/hooks/use-invite-code";
+import { usePermissions } from "@/hooks/use-permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Copy, Check } from "lucide-react";
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const { canAssignHiringManager } = usePermissions();
+  const { inviteCode, orgName, isLoading: inviteLoading } = useInviteCode();
+  const [copied, setCopied] = useState(false);
+
+  function copyInviteCode() {
+    if (!inviteCode) return;
+    navigator.clipboard.writeText(inviteCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   // ── Profile form ────────────────────────────────────────────────────────────
   const [name, setName] = useState(user?.name ?? "");
@@ -65,6 +78,41 @@ export default function SettingsPage() {
       </div>
 
       <Separator />
+
+      {/* Team Invite Card — only visible to recruiters/admins who manage the org */}
+      {canAssignHiringManager && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Team Invite</CardTitle>
+            <CardDescription>
+              Share this code with hiring managers so they can join your organization{orgName ? ` (${orgName})` : ""}.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {inviteLoading ? (
+              <p className="text-sm text-muted-foreground">Loading invite code…</p>
+            ) : inviteCode ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={inviteCode}
+                    readOnly
+                    className="font-mono text-sm"
+                  />
+                  <Button variant="outline" size="icon" onClick={copyInviteCode}>
+                    {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Hiring managers enter this code on signup to join your organization. Keep it private.
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-destructive">Could not load invite code.</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Profile Card */}
       <Card>

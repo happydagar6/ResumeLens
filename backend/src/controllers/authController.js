@@ -68,9 +68,21 @@ async function signup(req, res, next) {
             if (!org) throw new CustomError("Invalid invite code", 400);
             user.organizationId = org._id;
             await user.save();
-        } else {
-            throw new CustomError("Invalid role", 400);
-        };
+        } else if (role === "admin") {
+            // Admin: create their own org just like recruiters
+            const slug = company
+                ? company.toLowerCase().replace(/\s+/g, "-") + "-" + Date.now()
+                : "org-" + Date.now();
+            const org = new Organization({
+                name: company || "My Organization",
+                slug,
+                createdBy: user._id,
+                inviteCode: crypto.randomBytes(16).toString("hex"),
+            });
+            await org.save();
+            user.organizationId = org._id;
+            await user.save();
+        }
 
 
         const token = generateToken(user._id, user.role);
@@ -88,8 +100,26 @@ async function signup(req, res, next) {
 
 async function getInviteCode(req, res, next) {
     try {
-        const org = await Organization.findById(req.user.organizationId);
-        if (!org) throw new CustomError("Organization not found", 404);
+        let org = await Organization.findById(req.user.organizationId);
+
+        // Auto-create an org for users who signed up before the org system was added
+        if (!org) {
+            const dbUser = await User.findById(req.user.id);
+            if (!dbUser) throw new CustomError("User not found", 404);
+
+            const company = dbUser.company || "My Organization";
+            const slug = company.toLowerCase().replace(/\s+/g, "-") + "-" + Date.now();
+            org = new Organization({
+                name: company,
+                slug,
+                createdBy: dbUser._id,
+                inviteCode: crypto.randomBytes(16).toString("hex"),
+            });
+            await org.save();
+            dbUser.organizationId = org._id;
+            await dbUser.save();
+        }
+
         if (org.createdBy.toString() !== req.user.id && req.user.role !== "admin") {
             throw new CustomError("Only the org owner can view the invite code", 403);
         }
@@ -150,7 +180,7 @@ async function updateProfile(req, res, next) {
         const user = await User.findByIdAndUpdate(
             req.user.id,
             { $set: data },
-            { new: true, runValidators: true }
+            { returnDocument: "after", runValidators: true }
         );
         if (!user) throw new CustomError("User not found", 404);
         response(res, 200, { user: { id: user._id, name: user.name, email: user.email, company: user.company, role: user.role } });

@@ -11,6 +11,7 @@ export const signupSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
   company: z.string().optional(),
   role: z.enum(["recruiter", "hiring_manager", "admin"]).optional(),
+  inviteCode: z.string().optional(),
 });
 
 export const jobSchema = z.object({

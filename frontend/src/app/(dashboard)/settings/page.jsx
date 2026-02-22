@@ -125,6 +125,38 @@ export default function SettingsPage() {
         </Card>
       )}
 
+      {/* Team Members Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Team Members
+          </CardTitle>
+          <CardDescription>Everyone in your organization.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {teamLoading ? (
+            <p className="text-sm text-muted-foreground">Loading members…</p>
+          ) : teamMembers.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No team members found.</p>
+          ) : (
+            <div className="space-y-2">
+              {teamMembers.map((m) => (
+                <div key={m._id} className="flex items-center justify-between py-2 border-b last:border-0">
+                  <div>
+                    <p className="text-sm font-medium">{m.name}</p>
+                    <p className="text-xs text-muted-foreground">{m.email}</p>
+                  </div>
+                  <Badge variant="secondary" className="capitalize text-xs">
+                    {m.role?.replace("_", " ")}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Profile Card */}
       <Card>
         <CardHeader>

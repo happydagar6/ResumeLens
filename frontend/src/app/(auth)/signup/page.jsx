@@ -20,6 +20,27 @@ import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
+// ── Password strength helper ──────────────────────────────────────────────────
+function getPasswordStrength(password) {
+  if (!password) return { score: 0, label: "", color: "" };
+  let score = 0;
+  if (password.length >= 6) score++;
+  if (password.length >= 10) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+
+  const map = [
+    { label: "", color: "" },
+    { label: "Very weak", color: "bg-red-500" },
+    { label: "Weak", color: "bg-orange-400" },
+    { label: "Fair", color: "bg-yellow-400" },
+    { label: "Strong", color: "bg-green-400" },
+    { label: "Very strong", color: "bg-green-600" },
+  ];
+  return { score, ...map[score] };
+}
+
 export default function SignupPage() {
   const { signup } = useAuth();
   const [error, setError] = useState("");
@@ -43,6 +64,8 @@ export default function SignupPage() {
   });
 
   const selectedRole = watch("role");
+  const passwordValue = watch("password");
+  const strength = getPasswordStrength(passwordValue);
 
   const onSubmit = async (data) => {
     try {
@@ -99,6 +122,24 @@ export default function SignupPage() {
             placeholder="••••••"
             {...register("password")}
           />
+          {/* Password strength bar */}
+          {passwordValue && (
+            <div className="space-y-1">
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map((seg) => (
+                  <div
+                    key={seg}
+                    className={`h-1.5 flex-1 rounded-full transition-all ${
+                      strength.score >= seg ? strength.color : "bg-muted"
+                    }`}
+                  />
+                ))}
+              </div>
+              {strength.label && (
+                <p className="text-xs text-muted-foreground">{strength.label}</p>
+              )}
+            </div>
+          )}
           {errors.password && (
             <p className="text-xs text-destructive">{errors.password.message}</p>
           )}

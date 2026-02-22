@@ -100,11 +100,30 @@ async function getOverviewStats(req, res, next) {
         },
       ]),
 
-      // 5 most recently created jobs for "Recent Activity" widget — user scoped
-      Job.find(jobFilter)
-        .sort({ createdAt: -1 })
-        .limit(5)
-        .select("title company status type createdAt"),
+      // 5 most recently created jobs with candidate counts — user scoped
+      Job.aggregate([
+        { $match: isAdmin ? {} : { createdBy: new mongoose.Types.ObjectId(req.user.id) } },
+        { $sort: { createdAt: -1 } },
+        { $limit: 5 },
+        { $lookup: { from: "resumes", localField: "_id", foreignField: "jobId", as: "_res" } },
+        { $lookup: { from: "screenings", localField: "_id", foreignField: "jobId", as: "_scr" } },
+        {
+          $addFields: {
+            resumeCount: { $size: "$_res" },
+            screenedCount: { $size: "$_scr" },
+            shortlistedCount: {
+              $size: {
+                $filter: {
+                  input: "$_scr",
+                  as: "s",
+                  cond: { $eq: ["$$s.hiringManagerDecision", "shortlisted"] },
+                },
+              },
+            },
+          },
+        },
+        { $project: { _res: 0, _scr: 0 } },
+      ]),
     ]);
 
     // Flatten aggregation results into plain objects
@@ -454,7 +473,7 @@ async function getActivityFeed(req, res, next) {
       acc[job._id.toString()] = job;
       return acc;
     }, {});
-    const jobIds = Objectjobs.map((j) => j._id);
+    const jobIds = jobs.map((j) => j._id);
 
     if (jobIds.length === 0) {
       return response(res, 200, { activities: [] });

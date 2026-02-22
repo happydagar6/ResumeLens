@@ -8,7 +8,7 @@ import StatsCards from "@/components/dashboard/stats-cards";
 import JobCard from "@/components/dashboard/job-card";
 import { CardSkeleton } from "@/components/common/loading-state";
 import { Button } from "@/components/ui/button";
-import { Briefcase, FileText, Brain, BarChart3, Plus, Clock } from "lucide-react";
+import { Briefcase, Brain, BarChart3, Plus, Clock } from "lucide-react";
 import Link from "next/link";
 
 export default function DashboardHome() {
@@ -116,7 +116,7 @@ export default function DashboardHome() {
                   )}
                 </div>
                 <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {new Date(item.createdAt).toLocaleDateString()}
+                  {new Date(item.timestamp).toLocaleDateString()}
                 </span>
               </div>
             ))}

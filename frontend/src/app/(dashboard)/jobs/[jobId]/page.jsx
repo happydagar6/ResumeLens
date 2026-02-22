@@ -28,7 +28,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2, BarChart3, MapPin, Clock, Pencil, UserPlus, X, Users, Loader2, Zap } from "lucide-react";
+import { Trash2, BarChart3, MapPin, Clock, Pencil, UserPlus, X, Users, Loader2, Zap, Copy, Check } from "lucide-react";
 import Link from "next/link";
 
 export default function JobDetailPage() {
@@ -40,6 +40,13 @@ export default function JobDetailPage() {
 
   // State
   const [showAssignPanel, setShowAssignPanel] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  function copyJobLink() {
+    navigator.clipboard.writeText(window.location.href);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  }
 
   // Data fetching
   const { job, isLoading: jobLoading } = useJob(jobId);
@@ -89,6 +96,15 @@ export default function JobDetailPage() {
         </div>
 
         <div className="flex gap-2">
+          {/* Copy job link */}
+          <Button variant="ghost" size="icon" onClick={copyJobLink} title="Copy job link">
+            {linkCopied ? (
+              <Check className="h-4 w-4 text-green-500" />
+            ) : (
+              <Copy className="h-4 w-4" />
+            )}
+          </Button>
+
           <Button variant="outline" asChild>
             <Link href={`/jobs/${jobId}/screening`}>
               <BarChart3 className="mr-2 h-4 w-4" />

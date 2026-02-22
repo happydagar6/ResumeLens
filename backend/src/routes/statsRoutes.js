@@ -1,7 +1,7 @@
 // src/routes/statsRoutes.js
 
 const express = require("express");
-const { getOverviewStats, getJobStats } = require("../controllers/statsController");
+const { getOverviewStats, getJobStats, getActivityFeed } = require("../controllers/statsController");
 const authMiddleware = require("../middleware/authMiddleware");
 
 const router = express.Router();
@@ -17,4 +17,7 @@ router.get("/overview", getOverviewStats);
 // Returns per-job stats: resume counts, score stats, top candidates.
 router.get("/job/:jobId", getJobStats);
 
+// GET /api/stats/activity-feed
+// Returns recent activity across the platform for the dashboard feed
+router.get("/activity", getActivityFeed);
 module.exports = router;

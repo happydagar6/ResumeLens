@@ -32,6 +32,15 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import ScoreGauge from "@/components/dashboard/score-gauge";
+import {
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  ResponsiveContainer,
+  Legend,
+  Tooltip,
+} from "recharts";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const RECOMMENDATION_ORDER = {
@@ -71,6 +80,32 @@ const DECISION_COLORS = {
   on_hold: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
   rejected: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
 };
+
+// ── Radar chart helpers ───────────────────────────────────────────────────────
+const CHART_COLORS = [
+  "#6366f1", "#10b981", "#f59e0b", "#ef4444", "#3b82f6",
+  "#ec4899", "#14b8a6", "#f97316",
+];
+
+function buildRadarData(screenings) {
+  // Collect all unique skills across all candidates
+  const allSkills = new Set();
+  screenings.forEach((s) => {
+    (s.matchedSkills ?? []).forEach((sk) => allSkills.add(sk));
+    (s.missingSkills ?? []).forEach((sk) => allSkills.add(sk));
+  });
+
+  const skillList = [...allSkills].slice(0, 8); // cap at 8 axes for readability
+
+  return skillList.map((skill) => {
+    const entry = { skill };
+    screenings.forEach((s, i) => {
+      const name = s.resumeId?.candidateName?.split(" ")[0] ?? `C${i + 1}`;
+      entry[name] = (s.matchedSkills ?? []).includes(skill) ? 100 : 0;
+    });
+    return entry;
+  });
+}
 
 // ── Sort helpers ──────────────────────────────────────────────────────────────
 function getSortValue(screening, key) {
@@ -161,7 +196,38 @@ export default function CompareCandidatesPage() {
       {screenings.length === 0 ? (
         <p className="text-sm text-muted-foreground">No screened candidates yet.</p>
       ) : (
-        <div className="rounded-lg border overflow-x-auto">
+        <>
+          {/* Radar chart — shown when 2–8 candidates are present and skills exist */}
+          {sorted.length >= 2 && sorted.length <= 8 && buildRadarData(sorted).length > 0 && (
+            <div className="rounded-lg border p-4 space-y-2">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Skills Radar
+              </h2>
+              <ResponsiveContainer width="100%" height={300}>
+                <RadarChart data={buildRadarData(sorted)}>
+                  <PolarGrid />
+                  <PolarAngleAxis dataKey="skill" tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Legend />
+                  {sorted.map((s, i) => {
+                    const name = s.resumeId?.candidateName?.split(" ")[0] ?? `C${i + 1}`;
+                    return (
+                      <Radar
+                        key={s._id}
+                        name={name}
+                        dataKey={name}
+                        stroke={CHART_COLORS[i % CHART_COLORS.length]}
+                        fill={CHART_COLORS[i % CHART_COLORS.length]}
+                        fillOpacity={0.15}
+                      />
+                    );
+                  })}
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          <div className="rounded-lg border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -335,6 +401,7 @@ export default function CompareCandidatesPage() {
             </TableBody>
           </Table>
         </div>
+        </>
       )}
     </div>
   );

@@ -2,8 +2,32 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle, XCircle } from "lucide-react";
 
 export default function SkillsDisplay({ matchedSkills = [], missingSkills = [] }) {
+  const total = matchedSkills.length + missingSkills.length;
+  const matchPct = total > 0 ? Math.round((matchedSkills.length / total) * 100) : 0;
+
   return (
     <div className="space-y-4">
+      {/* Segmented progress bar */}
+      {total > 0 && (
+        <div className="space-y-1">
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>{matchedSkills.length} matched</span>
+            <span className="font-medium">{matchPct}%</span>
+            <span>{missingSkills.length} missing</span>
+          </div>
+          <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full bg-green-500 transition-all"
+              style={{ width: `${matchPct}%` }}
+            />
+            <div
+              className="h-full bg-red-400 transition-all"
+              style={{ width: `${100 - matchPct}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {matchedSkills.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm font-medium">

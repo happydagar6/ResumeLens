@@ -213,4 +213,21 @@ async function updatePassword(req, res, next) {
     }
 }
 
-module.exports = { signup, login, logout, me, updateProfile, updatePassword, getInviteCode };
+// GET /api/auth/team
+// Returns all users in the same organization as the requester.
+async function getTeamMembers(req, res, next) {
+    try {
+        if (!req.user.organizationId) {
+            return response(res, 200, { members: [] });
+        }
+        const members = await User.find(
+            { organizationId: req.user.organizationId },
+            "name email role createdAt"
+        ).sort({ createdAt: 1 });
+        response(res, 200, { members });
+    } catch (error) {
+        next(error);
+    }
+}
+
+module.exports = { signup, login, logout, me, updateProfile, updatePassword, getInviteCode, getTeamMembers };

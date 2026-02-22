@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { BrainCircuit, LogOut, LayoutDashboard } from "lucide-react";
+import NotificationBell from "@/components/dashboard/notification-bell";
 
 export default function DashboardNavbar() {
   const { user, logout } = useAuth();
@@ -22,6 +23,8 @@ export default function DashboardNavbar() {
         <BrainCircuit className="h-6 w-6 text-primary" />
         <span className="text-lg font-bold tracking-tight hidden sm:inline">RecruitAI</span>
       </Link>
+
+      {user && <NotificationBell />}
 
       {user && (
         <DropdownMenu>

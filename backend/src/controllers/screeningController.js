@@ -3,6 +3,7 @@
 const Screening = require("../models/screeningModel");
 const Resume = require("../models/resumeModel");
 const Job = require("../models/jobModel");
+const Notification = require("../models/notificationModel");
 const { scoreResume } = require("../services/resumeScorerAgent"); // CHANGED: was aiAgentService
 const { response } = require("../utils/response");
 const { generateEmailDraft } = require("../services/emailDraftAgent");
@@ -55,6 +56,16 @@ async function screenResume(req, res, next) {
         // Update resume status
         resume.status = "screened";
         await resume.save();
+
+        // Fire-and-forget notification to the job creator
+        Notification.create({
+            userId: job.createdBy,
+            type: "screening_complete",
+            message: `Screening complete for ${resume.candidateName || "a candidate"}`,
+            detail: `Score: ${aiResult.score}/100 · ${job.title}`,
+            jobId: job._id,
+            screeningId: screening._id,
+        }).catch(() => {}); // never block the response
 
         response(res, 201, { screening }, "Resume screened successfully");
     } catch (err) {
@@ -147,6 +158,18 @@ async function makeDecision(req, res, next) {
         screening.decidedAt = new Date();
         screening.notes = notes;
         await screening.save();
+
+        // Notify the job creator when a hiring manager makes a decision
+        if (job.createdBy?.toString() !== req.user.id) {
+            Notification.create({
+                userId: job.createdBy,
+                type: "decision_made",
+                message: `Decision: ${decision.replace("_", " ")} recorded`,
+                detail: `By ${req.user.name || "a hiring manager"}`,
+                jobId: job._id,
+                screeningId: screening._id,
+            }).catch(() => {});
+        }
 
         // Re-fetch with all populated fields for the response
         const updated = await Screening.findById(screening._id)

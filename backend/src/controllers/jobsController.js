@@ -1,6 +1,9 @@
 // src/controllers/jobsController.js
 
+const mongoose = require("mongoose");
 const Job = require("../models/jobModel");
+const Resume = require("../models/resumeModel");
+const Screening = require("../models/screeningModel");
 const { response } = require("../utils/response");
 const { CustomError } = require("../utils/errors");
 const { z } = require("zod");
@@ -74,6 +77,13 @@ async function getJobs(req, res, next) {
         const limit = Math.min(100, parseInt(req.query.limit) || 20); // Default to 20 per page, max 100
         const skip = (page - 1) * limit; // Calculate how many records to skip
 
+        // Convert string IDs to ObjectId for use in aggregate $match
+        const toOid = (id) => new mongoose.Types.ObjectId(id);
+        const aggregateFilter = { ...filter };
+        if (aggregateFilter.createdBy) aggregateFilter.createdBy = toOid(aggregateFilter.createdBy);
+        if (aggregateFilter.assignedTo) aggregateFilter.assignedTo = toOid(aggregateFilter.assignedTo);
+        if (aggregateFilter.organizationId) aggregateFilter.organizationId = toOid(aggregateFilter.organizationId);
+
         // Sort
         let sortOption;
         if (sort === "oldest") {
@@ -83,7 +93,47 @@ async function getJobs(req, res, next) {
         }
 
         const [jobs, total] = await Promise.all([
-            Job.find(filter).sort(sortOption).skip(skip).limit(limit),
+            Job.aggregate([
+                { $match: aggregateFilter },
+                { $sort: sortOption },
+                { $skip: skip },
+                { $limit: limit },
+                // Join resumes to count uploads
+                {
+                    $lookup: {
+                        from: "resumes",
+                        localField: "_id",
+                        foreignField: "jobId",
+                        as: "_resumes",
+                    },
+                },
+                // Join screenings to count screened + shortlisted
+                {
+                    $lookup: {
+                        from: "screenings",
+                        localField: "_id",
+                        foreignField: "jobId",
+                        as: "_screenings",
+                    },
+                },
+                {
+                    $addFields: {
+                        resumeCount: { $size: "$_resumes" },
+                        screenedCount: { $size: "$_screenings" },
+                        shortlistedCount: {
+                            $size: {
+                                $filter: {
+                                    input: "$_screenings",
+                                    as: "s",
+                                    cond: { $eq: ["$$s.hiringManagerDecision", "shortlisted"] },
+                                },
+                            },
+                        },
+                    },
+                },
+                // Strip the raw joined arrays — they're large and unnecessary on the list view
+                { $project: { _resumes: 0, _screenings: 0 } },
+            ]),
             Job.countDocuments(filter),
         ]);
 

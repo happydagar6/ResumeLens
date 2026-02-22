@@ -1,22 +1,33 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useUpdateProfile, useUpdatePassword } from "@/hooks/use-profile";
 import { useInviteCode } from "@/hooks/use-invite-code";
 import { usePermissions } from "@/hooks/use-permissions";
+import { api } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Copy, Check } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Copy, Check, Users } from "lucide-react";
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const { canAssignHiringManager } = usePermissions();
   const { inviteCode, orgName, isLoading: inviteLoading } = useInviteCode();
   const [copied, setCopied] = useState(false);
+
+  // Team members
+  const { data: teamData, isLoading: teamLoading } = useQuery({
+    queryKey: ["team"],
+    queryFn: () => api.get("/auth/team"),
+    staleTime: 2 * 60 * 1000,
+  });
+  const teamMembers = teamData?.data?.members ?? [];
 
   function copyInviteCode() {
     if (!inviteCode) return;

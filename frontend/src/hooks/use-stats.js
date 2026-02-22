@@ -61,3 +61,17 @@ export function useJobAnalytics(jobId) {
     error,
   };
 }
+
+// GET /api/stats/activity — recent activity feed for dashboard
+export function useActivityFeed() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["stats", "activity"],
+    queryFn: () => api.get("/stats/activity"),
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+  return {
+    activities: data?.data?.activities ?? [],
+    isLoading,
+  };
+}

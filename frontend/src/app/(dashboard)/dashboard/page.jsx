@@ -1,6 +1,6 @@
 "use client";
 
-import { useOverviewStats } from "@/hooks/use-stats";
+import { useOverviewStats, useActivityFeed } from "@/hooks/use-stats";
 import { useAuth } from "@/hooks/use-auth";
 
 import { usePermissions } from "@/hooks/use-permissions";
@@ -8,13 +8,14 @@ import StatsCards from "@/components/dashboard/stats-cards";
 import JobCard from "@/components/dashboard/job-card";
 import { CardSkeleton } from "@/components/common/loading-state";
 import { Button } from "@/components/ui/button";
-import { Briefcase, FileText, Brain, BarChart3, Plus } from "lucide-react";
+import { Briefcase, FileText, Brain, BarChart3, Plus, Clock } from "lucide-react";
 import Link from "next/link";
 
 export default function DashboardHome() {
   const { user } = useAuth();
   const { canCreateJob } = usePermissions();
   const { stats, isLoading, isError } = useOverviewStats();
+  const { activities, isLoading: activitiesLoading } = useActivityFeed();
 
   // Build the 4 stat cards from the real API response shape:
   // stats.jobs    → { total, open, closed, draft }
@@ -95,6 +96,29 @@ export default function DashboardHome() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {stats.recentJobs.map((job) => (
               <JobCard key={job._id} job={job} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Activity Feed */}
+      {!activitiesLoading && activities.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">Recent Activity</h2>
+          <div className="rounded-lg border divide-y">
+            {activities.map((item, i) => (
+              <div key={item._id ?? i} className="flex items-start gap-3 px-4 py-3">
+                <Clock className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{item.message}</p>
+                  {item.detail && (
+                    <p className="text-xs text-muted-foreground truncate">{item.detail}</p>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {new Date(item.createdAt).toLocaleDateString()}
+                </span>
+              </div>
             ))}
           </div>
         </div>

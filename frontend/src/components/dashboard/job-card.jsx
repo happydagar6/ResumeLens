@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Clock, DollarSign } from "lucide-react";
+import { MapPin, Clock, DollarSign, Users, Brain } from "lucide-react";
 
 const statusColors = {
   open: "default",
@@ -67,6 +67,29 @@ export default function JobCard({ job }) {
                 <Badge variant="outline" className="text-xs">
                   +{job.skills.length - 4}
                 </Badge>
+              )}
+            </div>
+          )}
+
+          {/* Candidate count badges */}
+          {(job.resumeCount != null || job.screenedCount != null) && (
+            <div className="flex gap-3 pt-1 text-xs text-muted-foreground border-t">
+              {job.resumeCount != null && (
+                <span className="flex items-center gap-1">
+                  <Users className="h-3 w-3" />
+                  {job.resumeCount} applicant{job.resumeCount !== 1 ? "s" : ""}
+                </span>
+              )}
+              {job.screenedCount != null && (
+                <span className="flex items-center gap-1">
+                  <Brain className="h-3 w-3" />
+                  {job.screenedCount} screened
+                </span>
+              )}
+              {job.shortlistedCount != null && job.shortlistedCount > 0 && (
+                <span className="flex items-center gap-1 text-green-600">
+                  {job.shortlistedCount} shortlisted
+                </span>
               )}
             </div>
           )}

@@ -43,3 +43,21 @@ export function useJobStats(jobId) {
     error,
   };
 }
+
+// GET /api/jobs/:jobId/analytics — pipeline funnel for a specific job
+// Returns { funnel, decisions, totals }
+export function useJobAnalytics(jobId) {
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["analytics", "job", jobId],
+    queryFn: () => api.get(`/jobs/${jobId}/analytics`),
+    enabled: Boolean(jobId),
+    staleTime: 60 * 1000, // 1 minute
+  });
+
+  return {
+    analytics: data?.data ?? null,
+    isLoading,
+    isError,
+    error,
+  };
+}

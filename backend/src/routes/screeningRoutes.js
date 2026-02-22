@@ -1,7 +1,7 @@
 // src/routes/screeningRoutes.js
 
 const express = require("express");
-const { screenResume, getScreeningResults, getScreeningById, makeDecision } = require("../controllers/screeningController");
+const { screenResume, getScreeningResults, getScreeningById, makeDecision, generateEmail } = require("../controllers/screeningController");
 const authMiddleware = require("../middleware/authMiddleware");
 const authorize = require("../middleware/authorize");
 
@@ -19,5 +19,8 @@ router.post("/", authorize("recruiter", "admin"), screenResume);
 
 // DECISION: hiring managers, recruiters, and admins can record a decision
 router.put("/:id/decision", authorize("hiring_manager", "recruiter", "admin"), makeDecision);
+
+// EMAIL: generate email draft for a screening result
+router.post("/:id/generate-email", authorize("hiring_manager", "recruiter", "admin"), generateEmail);
 
 module.exports = router;

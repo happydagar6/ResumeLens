@@ -9,8 +9,10 @@ import { useRunScreening } from "@/hooks/use-screening";
 import { RESUME_KEYS } from "@/hooks/use-resume";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useHiringManagers } from "@/hooks/use-users";
+import { useJobAnalytics } from "@/hooks/use-stats";
 import ResumeUpload from "@/components/dashboard/resume-upload";
 import ResumeCard from "@/components/dashboard/resume-card";
+import { FunnelChart } from "@/components/dashboard/funnel-chart";
 import { LoadingSpinner } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,6 +52,9 @@ export default function JobDetailPage() {
   const deleteResumeMutation = useDeleteResume(jobId);
   const screenMutation = useRunScreening();
   const assignHMMutation = useAssignHiringManager(jobId);
+
+  // Analytics
+  const { analytics } = useJobAnalytics(jobId);
 
   const isLoading = jobLoading || resumesLoading;
 
@@ -214,6 +219,20 @@ export default function JobDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Pipeline Funnel */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold">Pipeline Funnel</h2>
+        {analytics?.decisions && (
+          <div className="flex flex-wrap gap-2 mb-3">
+            <Badge variant="secondary">Shortlisted: {analytics.decisions.shortlisted}</Badge>
+            <Badge variant="secondary">Offered: {analytics.decisions.offered}</Badge>
+            <Badge variant="destructive">Rejected: {analytics.decisions.rejected}</Badge>
+            <Badge variant="outline">On Hold: {analytics.decisions.onHold}</Badge>
+          </div>
+        )}
+        <FunnelChart funnel={analytics?.funnel ?? []} />
+      </div>
 
       <Separator />
 

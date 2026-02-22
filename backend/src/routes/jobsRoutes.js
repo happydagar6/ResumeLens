@@ -2,6 +2,7 @@
 
 const express = require("express");
 const { createJob, getJobs, getJobById, updateJob, deleteJob, assignJob } = require("../controllers/jobsController");
+const { getJobAnalytics } = require("../controllers/statsController");
 const authMiddleware = require("../middleware/authMiddleware");
 const authorize = require("../middleware/authorize");
 
@@ -21,5 +22,8 @@ router.delete("/:id", authorize("recruiter", "admin"), deleteJob);
 
 // ASSIGN: recruiters and admins can assign/remove hiring managers
 router.put("/:id/assign", authorize("recruiter", "admin"), assignJob);
+
+// ANALYTICS: pipeline funnel for a specific job
+router.get("/:id/analytics", getJobAnalytics);
 
 module.exports = router;

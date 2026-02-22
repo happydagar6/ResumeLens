@@ -77,7 +77,7 @@ export default function JobsPage() {
       {/* Search + Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
         {/* Search input */}
-        <div className="relative flex-1 min-w-[180px]">
+        <div className="relative flex-1 min-w-45">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-9"
@@ -92,7 +92,7 @@ export default function JobsPage() {
 
         {/* Status filter */}
         <Select value={status} onValueChange={handleFilterChange(setStatus)}>
-          <SelectTrigger className="w-[130px]">
+          <SelectTrigger className="w-32.5">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -105,7 +105,7 @@ export default function JobsPage() {
 
         {/* Type filter */}
         <Select value={type} onValueChange={handleFilterChange(setType)}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-35">
             <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent>
@@ -120,7 +120,7 @@ export default function JobsPage() {
 
         {/* Sort */}
         <Select value={sort} onValueChange={handleFilterChange(setSort)}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-35">
             <SelectValue placeholder="Sort" />
           </SelectTrigger>
           <SelectContent>

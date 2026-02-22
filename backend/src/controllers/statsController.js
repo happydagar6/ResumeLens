@@ -340,4 +340,76 @@ async function getJobStats(req, res, next) {
     }
 }
 
-module.exports = { getOverviewStats, getJobStats };
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/jobs/:jobId/analytics
+// Returns pipeline funnel counts for a specific job:
+//   Uploaded → Parsed → Screened → Shortlisted → Offered
+//
+// Accessible by: job creator, assigned hiring managers, admins.
+// ─────────────────────────────────────────────────────────────────────────────
+async function getJobAnalytics(req, res, next) {
+    try {
+        const jobId = req.params.id || req.params.jobId;
+
+        if (!mongoose.Types.ObjectId.isValid(jobId)) {
+            throw new CustomError("Invalid job ID", 400);
+        }
+
+        const job = await Job.findById(jobId).select("title company createdBy assignedTo");
+        if (!job) throw new CustomError("Job not found", 404);
+
+        // Access check: creator, assigned HM, or admin
+        const isOwner = job.createdBy?.toString() === req.user.id;
+        const isAssigned = job.assignedTo?.some((uid) => uid.toString() === req.user.id);
+        if (req.user.role !== "admin" && !isOwner && !isAssigned) {
+            throw new CustomError("Access denied", 403);
+        }
+
+        const jobObjectId = new mongoose.Types.ObjectId(jobId);
+
+        // Run all counts in parallel
+        const [
+            uploaded,
+            parsed,
+            screened,
+            shortlisted,
+            offered,
+            rejected,
+            onHold,
+        ] = await Promise.all([
+            Resume.countDocuments({ jobId }),
+            Resume.countDocuments({ jobId, status: { $in: ["parsed", "screening", "screened"] } }),
+            Resume.countDocuments({ jobId, status: "screened" }),
+            Screening.countDocuments({ jobId: jobObjectId, hiringManagerDecision: "shortlisted" }),
+            Screening.countDocuments({ jobId: jobObjectId, hiringManagerDecision: "offered" }),
+            Screening.countDocuments({ jobId: jobObjectId, hiringManagerDecision: "rejected" }),
+            Screening.countDocuments({ jobId: jobObjectId, hiringManagerDecision: "on_hold" }),
+        ]);
+
+        // Build the ordered funnel stages with drop-off percentage from previous stage
+        const stages = [
+            { name: "Uploaded",    count: uploaded,    color: "#6366f1" },
+            { name: "Parsed",      count: parsed,      color: "#8b5cf6" },
+            { name: "Screened",    count: screened,    color: "#3b82f6" },
+            { name: "Shortlisted", count: shortlisted, color: "#10b981" },
+            { name: "Offered",     count: offered,     color: "#f59e0b" },
+        ].map((stage, i, arr) => {
+            const prev = i === 0 ? null : arr[i - 1].count;
+            const drop =
+                prev === null || prev === 0
+                    ? null
+                    : Math.round(((prev - stage.count) / prev) * 100);
+            return { ...stage, dropFromPrevious: drop };
+        });
+
+        response(res, 200, {
+            funnel: stages,
+            decisions: { shortlisted, offered, rejected, onHold },
+            totals: { uploaded, parsed, screened },
+        }, "Job analytics fetched successfully");
+    } catch (err) {
+        next(err);
+    }
+}
+
+module.exports = { getOverviewStats, getJobStats, getJobAnalytics };

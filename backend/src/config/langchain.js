@@ -51,4 +51,10 @@ const analyzerModel = new ChatOpenAI({
     },
 });
 
-module.exports = { extractorModel, scorerModel, questionModel, analyzerModel };
+const emailModel = new ChatOpenAI({
+    model: "gpt-4.1-mini-2025-04-14",
+    temperature: 0.4,
+    openAIApiKey: process.env.OPENAI_API_KEY,
+});
+
+module.exports = { extractorModel, scorerModel, questionModel, analyzerModel, emailModel };

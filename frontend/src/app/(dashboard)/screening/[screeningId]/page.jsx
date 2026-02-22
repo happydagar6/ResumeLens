@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { useScreening, useMakeDecision } from "@/hooks/use-screening";
+import { useScreening, useMakeDecision, useGenerateEmail } from "@/hooks/use-screening";
 import { useQuestions, useGenerateQuestions } from "@/hooks/use-questions";
 import { usePermissions } from "@/hooks/use-permissions";
 import ScoreGauge from "@/components/dashboard/score-gauge";
@@ -10,12 +10,17 @@ import SkillsDisplay from "@/components/dashboard/skills-display";
 import QuestionsDisplay from "@/components/dashboard/questions-display";
 import { LoadingSpinner } from "@/components/common/loading-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ArrowLeft, Brain, Loader2, ThumbsUp, ThumbsDown, AlertTriangle, CheckCircle2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ArrowLeft, Brain, Loader2, ThumbsUp, ThumbsDown, AlertTriangle, CheckCircle2, Mail, Copy, Check } from "lucide-react";
 import Link from "next/link";
 
 const recommendationLabels = {
@@ -43,6 +48,28 @@ export default function ScreeningDetailPage() {
 
   // Local state for notes textarea
   const [decisionNotes, setDecisionNotes] = useState("");
+
+  // Email draft state
+  const emailMutation = useGenerateEmail();
+  const [emailType, setEmailType] = useState(null);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [copiedSubject, setCopiedSubject] = useState(false);
+  const [copiedBody, setCopiedBody] = useState(false);
+
+  const handleGenerateEmail = (type) => {
+    setEmailType(type);
+    emailMutation.mutate(
+      { screeningId, emailType: type },
+      { onSuccess: () => setEmailDialogOpen(true) }
+    );
+  };
+
+  const copyText = (text, setCopied) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   if (screeningLoading || questionsLoading) return <LoadingSpinner />;
   if (!screening) return <p className="text-muted-foreground">Screening not found.</p>;
@@ -226,6 +253,93 @@ export default function ScreeningDetailPage() {
           )}
         </div>
       )}
+
+      <Separator />
+
+      {/* AI Email Draft */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold">AI Email Draft</h2>
+        <p className="text-sm text-muted-foreground">
+          Generate a professional email for this candidate based on the screening result.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { type: "shortlisted",     label: "Shortlist Email" },
+            { type: "rejection",       label: "Rejection Email" },
+            { type: "interview_invite", label: "Interview Invite" },
+            { type: "offer",           label: "Offer Email" },
+          ].map((opt) => (
+            <Button
+              key={opt.type}
+              variant="outline"
+              size="sm"
+              disabled={emailMutation.isPending}
+              onClick={() => handleGenerateEmail(opt.type)}
+            >
+              {emailMutation.isPending && emailType === opt.type ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Mail className="mr-2 h-4 w-4" />
+              )}
+              {opt.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {/* Email Draft Dialog */}
+      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Generated Email Draft</DialogTitle>
+          </DialogHeader>
+          {emailMutation.data && (
+            <div className="space-y-4">
+              {/* Subject */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">Subject</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyText(emailMutation.data.data.subject, setCopiedSubject)}
+                  >
+                    {copiedSubject ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                <p className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                  {emailMutation.data.data.subject}
+                </p>
+              </div>
+
+              {/* Body */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">Body</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyText(emailMutation.data.data.body, setCopiedBody)}
+                  >
+                    {copiedBody ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                <pre className="rounded-md border bg-muted/30 px-3 py-2 text-sm whitespace-pre-wrap font-sans max-h-80 overflow-y-auto">
+                  {emailMutation.data.data.body}
+                </pre>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Separator />
 

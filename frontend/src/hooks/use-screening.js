@@ -93,3 +93,16 @@ export function useMakeDecision() {
     },
   });
 }
+
+// ── POST /api/screening/:id/generate-email ────────────────────────────────────
+// Calls the AI to draft an email for the candidate.
+// Returns { subject, body } via mutation.data after success.
+export function useGenerateEmail() {
+  return useMutation({
+    mutationFn: ({ screeningId, emailType }) =>
+      api.post(`/screening/${screeningId}/generate-email`, { emailType }),
+    onError: (err) => {
+      toast.error(err.message || "Failed to generate email draft");
+    },
+  });
+}

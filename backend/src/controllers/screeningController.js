@@ -5,6 +5,7 @@ const Resume = require("../models/resumeModel");
 const Job = require("../models/jobModel");
 const { scoreResume } = require("../services/resumeScorerAgent"); // CHANGED: was aiAgentService
 const { response } = require("../utils/response");
+const { generateEmailDraft } = require("../services/emailDraftAgent");
 const { CustomError } = require("../utils/errors");
 
 async function screenResume(req, res, next) {
@@ -159,4 +160,49 @@ async function makeDecision(req, res, next) {
     }
 }
 
-module.exports = { screenResume, getScreeningResults, getScreeningById, makeDecision };
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/screening/:id/generate-email
+// Body: { emailType: "rejection" | "interview_invite" | "offer" }
+//
+// Uses LangChain to generate a professional email draft based on the
+// screening result and candidate context. Returns { subject, body }.
+// Accessible by: recruiter (job owner), hiring_manager (assigned), admin.
+// ─────────────────────────────────────────────────────────────────────────────
+async function generateEmail(req, res, next) {
+    try {
+        const { emailType } = req.body;
+        if (!emailType) throw new CustomError("emailType is required", 400);
+
+        // Load screening with all the context we need for the email
+        const screening = await Screening.findById(req.params.id)
+            .populate("resumeId", "candidateName candidateEmail")
+            .populate("jobId", "title company createdBy assignedTo");
+
+        if (!screening) throw new CustomError("Screening not found", 404);
+
+        // Access check — same pattern as all other screening endpoints
+        const job = screening.jobId;
+        const isOwner = job?.createdBy?.toString() === req.user.id;
+        const isAssigned = job?.assignedTo?.some((uid) => uid.toString() === req.user.id);
+        if (req.user.role !== "admin" && !isOwner && !isAssigned) {
+            throw new CustomError("Access denied", 403);
+        }
+
+        const { subject, body } = await generateEmailDraft({
+            emailType,
+            candidateName: screening.resumeId?.candidateName,
+            jobTitle: job?.title,
+            company: job?.company,
+            score: screening.overallScore,
+            strengths: screening.strengths,
+            matchedSkills: screening.matchedSkills,
+            missingSkills: screening.missingSkills,
+        });
+
+        response(res, 200, { subject, body }, "Email draft generated successfully");
+    } catch (err) {
+        next(err);
+    }
+}
+
+module.exports = { screenResume, getScreeningResults, getScreeningById, makeDecision, generateEmail };

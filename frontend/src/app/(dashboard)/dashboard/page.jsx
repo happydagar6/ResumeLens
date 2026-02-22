@@ -54,7 +54,9 @@ export default function DashboardHome() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Welcome back{user?.name ? `, ${user.name}` : ""}
+            Welcome back{user?.name ? (
+              <>, <span className="gradient-brand">{user.name}</span></>
+            ) : ""}
           </h1>
           <p className="text-muted-foreground">
             Here&apos;s an overview of your recruitment pipeline.

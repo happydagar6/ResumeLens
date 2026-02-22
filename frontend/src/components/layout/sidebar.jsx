@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Briefcase, Plus, Settings } from "lucide-react";
+import { LayoutDashboard, Briefcase, Plus, Settings, Sparkles } from "lucide-react";
 import { usePermissions } from "@/hooks/use-permissions";
 
 function NavLinks({ onClick }) {
@@ -37,14 +37,20 @@ function NavLinks({ onClick }) {
           href={link.href}
           onClick={onClick}
           className={cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+            "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
             isActive
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              ? "bg-gradient-to-r from-primary/90 to-primary text-primary-foreground shadow-md shadow-primary/30"
+              : "text-muted-foreground hover:text-foreground hover:bg-primary/8 hover:translate-x-0.5"
           )}
         >
-          <link.icon className="h-4 w-4" />
+          <link.icon className={cn(
+            "h-4 w-4 transition-all duration-200",
+            isActive ? "text-primary-foreground" : "group-hover:text-primary"
+          )} />
           {link.label}
+          {isActive && (
+            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary-foreground/70" />
+          )}
         </Link>
       );
     });
@@ -52,8 +58,16 @@ function NavLinks({ onClick }) {
 
 export default function Sidebar() {
   return (
-    <aside className="hidden w-60 shrink-0 border-r bg-muted/20 md:block">
-      <nav className="flex flex-col gap-1 p-4">
+    <aside className="hidden w-60 shrink-0 border-r border-border/60 bg-gradient-to-b from-background to-muted/20 md:block">
+      {/* Brand strip */}
+      <div className="px-4 pt-5 pb-3 flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-violet-600 shadow-md shadow-primary/40">
+          <Sparkles className="h-4 w-4 text-white" />
+        </div>
+        <span className="text-sm font-bold gradient-brand">RecruitAI</span>
+      </div>
+      <div className="mx-4 mb-4 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+      <nav className="flex flex-col gap-1 px-3 pb-4">
         <NavLinks />
       </nav>
     </aside>
@@ -62,8 +76,17 @@ export default function Sidebar() {
 
 export function MobileSidebar({ onClose }) {
   return (
-    <nav className="flex flex-col gap-1 p-4">
-      <NavLinks onClick={onClose} />
-    </nav>
+    <div className="bg-gradient-to-b from-background to-muted/20 min-h-full">
+      <div className="px-4 pt-5 pb-3 flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-violet-600 shadow-md shadow-primary/40">
+          <Sparkles className="h-4 w-4 text-white" />
+        </div>
+        <span className="text-sm font-bold gradient-brand">RecruitAI</span>
+      </div>
+      <div className="mx-4 mb-4 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+      <nav className="flex flex-col gap-1 px-3 pb-4">
+        <NavLinks onClick={onClose} />
+      </nav>
+    </div>
   );
 }

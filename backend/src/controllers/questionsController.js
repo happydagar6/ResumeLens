@@ -286,4 +286,94 @@ async function generateBatch(req, res, next) {
   }
 }
 
-module.exports = { generateQuestions, getQuestionsByScreening, generateBatch };
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/questions/bank/:jobId
+//
+// Aggregates ALL interview questions generated for every candidate on a job.
+// Frontend groups and filters these by category.
+// Accessible by: job creator, assigned hiring managers, admin.
+// ─────────────────────────────────────────────────────────────────────────────
+async function getQuestionBank(req, res, next) {
+    try {
+        const { jobId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(jobId)) {
+            throw new CustomError("Invalid job ID", 400);
+        }
+
+        const job = await Job.findById(jobId).select("title company createdBy assignedTo");
+        if (!job) throw new CustomError("Job not found", 404);
+
+        const isOwner = job.createdBy?.toString() === req.user.id;
+        const isAssigned = job.assignedTo?.some((uid) => uid.toString() === req.user.id);
+        if (req.user.role !== "admin" && !isOwner && !isAssigned) {
+            throw new CustomError("Access denied", 403);
+        }
+
+        // Fetch all question docs for this job, newest first
+        const docs = await InterviewQuestion.find({ jobId })
+            .populate("resumeId", "candidateName candidateEmail")
+            .populate("screeningId", "overallScore recommendation")
+            .sort({ createdAt: -1 });
+
+        const totalQuestions = docs.reduce((sum, d) => sum + d.questions.length, 0);
+        const usedCount = docs.reduce(
+            (sum, d) => sum + d.questions.filter((q) => q.usedInInterview).length,
+            0
+        );
+
+        response(res, 200, {
+            jobId,
+            jobTitle: job.title,
+            docCount: docs.length,
+            totalQuestions,
+            usedCount,
+            docs,
+        });
+    } catch (err) {
+        next(err);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/questions/:docId/toggle-used
+// Body: { questionId }
+//
+// Toggles the usedInInterview boolean on a specific question subdocument.
+// Uses Mongoose subdocument .id() helper to find the nested question by _id.
+// Accessible by: job creator, assigned hiring managers, admin.
+// ─────────────────────────────────────────────────────────────────────────────
+async function toggleQuestionUsed(req, res, next) {
+    try {
+        const { docId } = req.params;
+        const { questionId } = req.body;
+        if (!questionId) throw new CustomError("questionId is required", 400);
+
+        const doc = await InterviewQuestion.findById(docId).populate(
+            "jobId", "createdBy assignedTo"
+        );
+        if (!doc) throw new CustomError("Question document not found", 404);
+
+        const job = doc.jobId;
+        const isOwner = job?.createdBy?.toString() === req.user.id;
+        const isAssigned = job?.assignedTo?.some((uid) => uid.toString() === req.user.id);
+        if (req.user.role !== "admin" && !isOwner && !isAssigned) {
+            throw new CustomError("Access denied", 403);
+        }
+
+        // .id() is the Mongoose helper for finding a subdocument by _id
+        const question = doc.questions.id(questionId);
+        if (!question) throw new CustomError("Question not found in document", 404);
+
+        question.usedInInterview = !question.usedInInterview;
+        await doc.save();
+
+        response(res, 200, {
+            questionId,
+            usedInInterview: question.usedInInterview,
+        }, "Question usage toggled");
+    } catch (err) {
+        next(err);
+    }
+}
+
+module.exports = { generateQuestions, getQuestionsByScreening, generateBatch, getQuestionBank, toggleQuestionUsed };

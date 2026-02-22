@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useJob, useDeleteJob, useAssignHiringManager } from "@/hooks/use-jobs";
 import { useResumesByJob, useDeleteResume } from "@/hooks/use-resume";
-import { useRunScreening } from "@/hooks/use-screening";
+import { useRunScreening, useBulkScreening } from "@/hooks/use-screening";
 import { RESUME_KEYS } from "@/hooks/use-resume";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useHiringManagers } from "@/hooks/use-users";
@@ -28,7 +28,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2, BarChart3, MapPin, Clock, Pencil, UserPlus, X, Users } from "lucide-react";
+import { Trash2, BarChart3, MapPin, Clock, Pencil, UserPlus, X, Users, Loader2, Zap } from "lucide-react";
 import Link from "next/link";
 
 export default function JobDetailPage() {
@@ -51,6 +51,7 @@ export default function JobDetailPage() {
   const deleteJobMutation = useDeleteJob();
   const deleteResumeMutation = useDeleteResume(jobId);
   const screenMutation = useRunScreening();
+  const bulkMutation = useBulkScreening();
   const assignHMMutation = useAssignHiringManager(jobId);
 
   // Analytics
@@ -256,9 +257,26 @@ export default function JobDetailPage() {
 
       {/* Resumes List */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold">
-          Uploaded Resumes ({resumes.length})
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">
+            Uploaded Resumes ({resumes.length})
+          </h2>
+          {canRunScreening && resumes.filter((r) => r.status === "parsed").length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={bulkMutation.isPending}
+              onClick={() => bulkMutation.mutate({ jobId })}
+            >
+              {bulkMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Zap className="mr-2 h-4 w-4" />
+              )}
+              Screen All ({resumes.filter((r) => r.status === "parsed").length})
+            </Button>
+          )}
+        </div>
         {resumes.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No resumes uploaded yet. Upload a PDF resume above.

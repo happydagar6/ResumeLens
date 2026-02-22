@@ -17,6 +17,11 @@ const questionSchema = new mongoose.Schema({
         enum: ["easy", "medium", "hard"],
         default: "medium",
     },
+    // Tracks whether this question was actually asked in the interview
+    usedInInterview: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const interviewQuestionSchema = new mongoose.Schema(

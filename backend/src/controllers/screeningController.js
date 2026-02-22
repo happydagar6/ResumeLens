@@ -205,4 +205,157 @@ async function generateEmail(req, res, next) {
     }
 }
 
-module.exports = { screenResume, getScreeningResults, getScreeningById, makeDecision, generateEmail };
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/screening/bulk
+// Body: { jobId, concurrency? }
+//
+// Finds every resume with status "parsed" for this job and runs AI scoring
+// on each, skipping any that already have a Screening document (idempotent).
+// Processes in parallel batches of `concurrency` (default 3) to avoid
+// overwhelming the AI API.
+//
+// Accessible by: recruiter (job creator) and admin only.
+// ─────────────────────────────────────────────────────────────────────────────
+async function bulkScreen(req, res, next) {
+    try {
+        const { jobId, concurrency = 3 } = req.body;
+        if (!jobId) throw new CustomError("jobId is required", 400);
+
+        const job = await Job.findById(jobId).select(
+            "title company description createdBy assignedTo analyzedJD"
+        );
+        if (!job) throw new CustomError("Job not found", 404);
+
+        // Only the job creator or admin can bulk-screen (not hired HMs)
+        if (req.user.role !== "admin" && job.createdBy?.toString() !== req.user.id) {
+            throw new CustomError("Access denied", 403);
+        }
+
+        // Fetch all parsed resumes for this job
+        const parsedResumes = await Resume.find({ jobId, status: "parsed" }).select(
+            "_id candidateName parsedText extractedEntities"
+        );
+
+        if (parsedResumes.length === 0) {
+            return response(
+                res, 200,
+                { jobId, total: 0, succeeded: 0, skipped: 0, failed: 0, results: [] },
+                "No parsed resumes to screen"
+            );
+        }
+
+        // Idempotency: skip resumes that already have a Screening document
+        const resumeIds = parsedResumes.map((r) => r._id);
+        const existingScreenings = await Screening.find({
+            resumeId: { $in: resumeIds },
+        }).select("resumeId");
+        const alreadyScreened = new Set(
+            existingScreenings.map((s) => s.resumeId.toString())
+        );
+
+        const toProcess = parsedResumes.filter(
+            (r) => !alreadyScreened.has(r._id.toString())
+        );
+        const skippedCount = parsedResumes.length - toProcess.length;
+
+        console.log(
+            `[BulkScreen] Job: ${job.title} | Parsed: ${parsedResumes.length} | ` +
+            `To process: ${toProcess.length} | Skipped: ${skippedCount}`
+        );
+
+        const results = [];
+
+        // Process in parallel batches to respect AI rate limits
+        for (let i = 0; i < toProcess.length; i += concurrency) {
+            const chunk = toProcess.slice(i, i + concurrency);
+
+            const chunkResults = await Promise.allSettled(
+                chunk.map(async (resume) => {
+                    const aiResult = await scoreResume(
+                        resume.parsedText,
+                        job.description,
+                        resume.extractedEntities || {},
+                        job.analyzedJD || null
+                    );
+
+                    const screening = new Screening({
+                        resumeId: resume._id,
+                        jobId: job._id,
+                        overallScore: aiResult.score,
+                        matchedSkills: aiResult.matchedSkills,
+                        missingSkills: aiResult.missingSkills,
+                        strengths: aiResult.strengths,
+                        weaknesses: aiResult.weaknesses,
+                        recommendation: aiResult.recommendation,
+                        rawAIResponse: aiResult,
+                    });
+                    await screening.save();
+
+                    // Update resume status to "screened"
+                    resume.status = "screened";
+                    await resume.save();
+
+                    return {
+                        resumeId: resume._id,
+                        candidateName: resume.candidateName,
+                        score: aiResult.score,
+                        recommendation: aiResult.recommendation,
+                        screeningId: screening._id,
+                    };
+                })
+            );
+
+            chunkResults.forEach((settled, idx) => {
+                const resume = chunk[idx];
+                if (settled.status === "fulfilled") {
+                    results.push({ status: "success", ...settled.value });
+                } else {
+                    console.error(
+                        `[BulkScreen] Failed for resume ${resume._id}:`,
+                        settled.reason?.message
+                    );
+                    results.push({
+                        status: "failed",
+                        resumeId: resume._id,
+                        candidateName: resume.candidateName,
+                        error: settled.reason?.message || "Unknown error",
+                    });
+                }
+            });
+        }
+
+        const succeededCount = results.filter((r) => r.status === "success").length;
+        const failedCount = results.filter((r) => r.status === "failed").length;
+
+        // Add skipped entries for full response visibility
+        parsedResumes
+            .filter((r) => alreadyScreened.has(r._id.toString()))
+            .forEach((r) => {
+                results.push({
+                    status: "skipped",
+                    resumeId: r._id,
+                    candidateName: r.candidateName,
+                    reason: "Already screened",
+                });
+            });
+
+        response(
+            res, 200,
+            {
+                jobId,
+                jobTitle: job.title,
+                total: parsedResumes.length,
+                succeeded: succeededCount,
+                skipped: skippedCount,
+                failed: failedCount,
+                results,
+            },
+            `Bulk screening complete: ${succeededCount} screened, ${skippedCount} skipped, ${failedCount} failed`
+        );
+    } catch (err) {
+        next(err);
+    }
+}
+
+module.exports = { screenResume, getScreeningResults, getScreeningById, makeDecision, generateEmail, bulkScreen };
+

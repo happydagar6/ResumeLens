@@ -1,7 +1,7 @@
 // src/routes/screeningRoutes.js
 
 const express = require("express");
-const { screenResume, getScreeningResults, getScreeningById, makeDecision, generateEmail } = require("../controllers/screeningController");
+const { screenResume, getScreeningResults, getScreeningById, makeDecision, generateEmail, bulkScreen } = require("../controllers/screeningController");
 const authMiddleware = require("../middleware/authMiddleware");
 const authorize = require("../middleware/authorize");
 
@@ -17,10 +17,14 @@ router.get("/:id", getScreeningById);
 // WRITE: only recruiters and admins can trigger screening
 router.post("/", authorize("recruiter", "admin"), screenResume);
 
+// BULK SCREEN: endpoint to screen multiple resumes for a job at once
+router.post("/bulk", authorize("recruiter", "admin"), bulkScreen);
+
 // DECISION: hiring managers, recruiters, and admins can record a decision
 router.put("/:id/decision", authorize("hiring_manager", "recruiter", "admin"), makeDecision);
 
 // EMAIL: generate email draft for a screening result
 router.post("/:id/generate-email", authorize("hiring_manager", "recruiter", "admin"), generateEmail);
+
 
 module.exports = router;

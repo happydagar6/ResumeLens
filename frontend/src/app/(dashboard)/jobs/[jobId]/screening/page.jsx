@@ -6,7 +6,7 @@ import { useScreeningsByJob } from "@/hooks/use-screening";
 import ScreeningResults from "@/components/dashboard/screening-results";
 import { LoadingSpinner } from "@/components/common/loading-state";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, LayoutList } from "lucide-react";
+import { ArrowLeft, LayoutList, BookOpen } from "lucide-react";
 import Link from "next/link";
 
 export default function JobScreeningPage() {
@@ -32,14 +32,24 @@ export default function JobScreeningPage() {
             {job?.title} at {job?.company} · {screenings.length} candidate(s) screened
           </p>
         </div>
-        {screenings.length > 1 && (
-          <Button variant="outline" asChild>
-            <Link href={`/jobs/${jobId}/compare`}>
-              <LayoutList className="mr-2 h-4 w-4" />
-              Compare Candidates
-            </Link>
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {screenings.length > 0 && (
+            <Button variant="outline" asChild>
+              <Link href={`/jobs/${jobId}/question-bank`}>
+                <BookOpen className="mr-2 h-4 w-4" />
+                Question Bank
+              </Link>
+            </Button>
+          )}
+          {screenings.length > 1 && (
+            <Button variant="outline" asChild>
+              <Link href={`/jobs/${jobId}/compare`}>
+                <LayoutList className="mr-2 h-4 w-4" />
+                Compare Candidates
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
 
       <ScreeningResults screenings={screenings} />

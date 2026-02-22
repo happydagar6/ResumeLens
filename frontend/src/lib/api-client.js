@@ -31,6 +31,7 @@ export const api = {
   get: (endpoint) => apiClient(endpoint),
   post: (endpoint, body) => apiClient(endpoint, { method: "POST", body }),
   put: (endpoint, body) => apiClient(endpoint, { method: "PUT", body }),
+  patch: (endpoint, body) => apiClient(endpoint, { method: "PATCH", body }),
   delete: (endpoint) => apiClient(endpoint, { method: "DELETE" }),
   upload: (endpoint, formData) =>
     apiClient(endpoint, { method: "POST", body: formData }),

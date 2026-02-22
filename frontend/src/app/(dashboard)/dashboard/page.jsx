@@ -8,7 +8,7 @@ import StatsCards from "@/components/dashboard/stats-cards";
 import JobCard from "@/components/dashboard/job-card";
 import { CardSkeleton } from "@/components/common/loading-state";
 import { Button } from "@/components/ui/button";
-import { Briefcase, Brain, BarChart3, Plus, Clock } from "lucide-react";
+import { Briefcase, Brain, BarChart3, Plus, Zap } from "lucide-react";
 import Link from "next/link";
 
 export default function DashboardHome() {
@@ -63,7 +63,7 @@ export default function DashboardHome() {
           </p>
         </div>
         {canCreateJob && (
-          <Button asChild>
+          <Button asChild className="bg-linear-to-r from-primary to-violet-600 text-white shadow-md shadow-primary/30 hover:opacity-90 border-0">
             <Link href="/jobs/new">
               <Plus className="mr-2 h-4 w-4" />
               New Job
@@ -106,22 +106,33 @@ export default function DashboardHome() {
       {/* Activity Feed */}
       {!activitiesLoading && activities.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Recent Activity</h2>
-          <div className="rounded-lg border divide-y">
-            {activities.map((item, i) => (
-              <div key={item._id ?? i} className="flex items-start gap-3 px-4 py-3">
-                <Clock className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{item.message}</p>
-                  {item.detail && (
-                    <p className="text-xs text-muted-foreground truncate">{item.detail}</p>
-                  )}
+          <div className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-primary" />
+            <h2 className="text-lg font-semibold">Recent Activity</h2>
+          </div>
+          <div className="rounded-xl border border-border/60 overflow-hidden divide-y divide-border/50 bg-card">
+            {activities.map((item, i) => {
+              const isScreening = item.type === "screening";
+              const isJob = item.type === "job";
+              return (
+                <div key={item._id ?? i} className="flex items-start gap-3 px-4 py-3 hover:bg-primary/3 transition-colors">
+                  <span
+                    className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${
+                      isScreening ? "bg-violet-500" : isJob ? "bg-primary" : "bg-cyan-500"
+                    }`}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{item.message}</p>
+                    {item.detail && (
+                      <p className="text-xs text-muted-foreground truncate">{item.detail}</p>
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap tabular-nums">
+                    {new Date(item.timestamp).toLocaleDateString()}
+                  </span>
                 </div>
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {new Date(item.timestamp).toLocaleDateString()}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

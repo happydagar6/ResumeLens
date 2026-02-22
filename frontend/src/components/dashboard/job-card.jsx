@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { MapPin, Clock, DollarSign, Users, Brain } from "lucide-react";
 
 const typeLabels = {
@@ -22,14 +21,14 @@ export default function JobCard({ job }) {
     <Link href={`/jobs/${job._id}`}>
       <Card className="group relative overflow-hidden border border-border/60 bg-card card-hover cursor-pointer h-full">
         {/* Colored top accent bar */}
-        <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${statusGradients[job.status] ?? "from-primary to-violet-500"}`} />
+        <div className={`absolute inset-x-0 top-0 h-1 bg-linear-to-r ${statusGradients[job.status] ?? "from-primary to-violet-500"}`} />
         <CardHeader className="pt-5">
           <div className="flex items-start justify-between gap-2">
             <div className="space-y-1">
               <CardTitle className="text-base font-bold group-hover:text-primary transition-colors">{job.title}</CardTitle>
               <CardDescription className="text-sm font-medium">{job.company}</CardDescription>
             </div>
-            <span className={`shrink-0 inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize text-white bg-gradient-to-r ${statusGradients[job.status] ?? "from-primary to-violet-500"} shadow-sm`}>
+            <span className={`shrink-0 inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize text-white bg-linear-to-r ${statusGradients[job.status] ?? "from-primary to-violet-500"} shadow-sm`}>
               {job.status}
             </span>
           </div>

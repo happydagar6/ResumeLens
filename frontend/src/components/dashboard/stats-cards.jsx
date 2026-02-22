@@ -27,7 +27,7 @@ export default function StatsCards({ stats }) {
         return (
           <div
             key={stat.label}
-            className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${grad} p-5 text-white shadow-lg ${glow} transition-all duration-300 hover:-translate-y-1 hover:shadow-xl`}
+            className={`relative overflow-hidden rounded-2xl bg-linear-to-br ${grad} p-5 text-white shadow-lg ${glow} transition-all duration-300 hover:-translate-y-1 hover:shadow-xl`}
           >
             {/* decorative circle */}
             <div className="absolute -right-4 -top-4 h-20 w-20 rounded-full bg-white/10" />

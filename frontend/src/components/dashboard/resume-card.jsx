@@ -25,7 +25,7 @@ export default function ResumeCard({ resume, onScreen, onDelete, screening = fal
     <Card className="border border-border/60 transition-all duration-200 hover:shadow-md hover:shadow-primary/8 hover:border-primary/30">
       <CardContent className="flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${bg} shadow-sm`}>
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br ${bg} shadow-sm`}>
             <FileText className="h-5 w-5 text-white" />
           </div>
           <div>
@@ -43,7 +43,7 @@ export default function ResumeCard({ resume, onScreen, onDelete, screening = fal
           </span>
 
           {resume.status === "parsed" && !screening && onScreen && (
-            <Button size="sm" className="h-7 bg-gradient-to-r from-primary to-violet-600 text-white hover:opacity-90 shadow-sm shadow-primary/30 border-0" onClick={() => onScreen(resume._id)}>
+            <Button size="sm" className="h-7 bg-linear-to-r from-primary to-violet-600 text-white hover:opacity-90 shadow-sm shadow-primary/30 border-0" onClick={() => onScreen(resume._id)}>
               <Brain className="mr-1 h-3 w-3" />
               Screen
             </Button>

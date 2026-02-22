@@ -20,7 +20,7 @@ export default function DashboardNavbar() {
   return (
     <div className="flex items-center gap-3">
       <Link href="/" className="flex items-center gap-2 mr-auto">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-violet-600 shadow-md shadow-primary/30">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-primary to-violet-600 shadow-md shadow-primary/30">
           <Sparkles className="h-4 w-4 text-white" />
         </div>
         <span className="text-lg font-bold gradient-brand hidden sm:inline">RecruitAI</span>
@@ -33,7 +33,7 @@ export default function DashboardNavbar() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
               <Avatar className="h-9 w-9 ring-2 ring-primary/30 ring-offset-1">
-                <AvatarFallback className="bg-gradient-to-br from-primary to-violet-600 text-white text-sm font-bold">
+                <AvatarFallback className="bg-linear-to-br from-primary to-violet-600 text-white text-sm font-bold">
                   {user.name?.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>

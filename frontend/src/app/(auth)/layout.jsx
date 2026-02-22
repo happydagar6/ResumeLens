@@ -6,7 +6,7 @@ export default function AuthLayout({ children }) {
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
       {/* Animated gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-violet-50/60 to-cyan-50 dark:from-indigo-950 dark:via-violet-950/60 dark:to-cyan-950" />
+      <div className="absolute inset-0 bg-linear-to-br from-indigo-50 via-violet-50/60 to-cyan-50 dark:from-indigo-950 dark:via-violet-950/60 dark:to-cyan-950" />
       {/* Decorative blobs */}
       <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-primary/15 blur-3xl" />
       <div className="absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-violet-500/15 blur-3xl" />
@@ -16,7 +16,7 @@ export default function AuthLayout({ children }) {
       <div className="relative w-full max-w-md space-y-6 z-10">
         <div className="flex flex-col items-center gap-3">
           <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-violet-600 shadow-xl shadow-primary/40">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-linear-to-br from-primary to-violet-600 shadow-xl shadow-primary/40">
               <Sparkles className="h-6 w-6 text-white" />
             </div>
             <span className="text-3xl font-extrabold gradient-brand">RecruitAI</span>

@@ -39,7 +39,7 @@ function NavLinks({ onClick }) {
           className={cn(
             "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
             isActive
-              ? "bg-gradient-to-r from-primary/90 to-primary text-primary-foreground shadow-md shadow-primary/30"
+              ? "bg-linear-to-r from-primary/90 to-primary text-primary-foreground shadow-md shadow-primary/30"
               : "text-muted-foreground hover:text-foreground hover:bg-primary/8 hover:translate-x-0.5"
           )}
         >
@@ -58,15 +58,15 @@ function NavLinks({ onClick }) {
 
 export default function Sidebar() {
   return (
-    <aside className="hidden w-60 shrink-0 border-r border-border/60 bg-gradient-to-b from-background to-muted/20 md:block">
+    <aside className="hidden w-60 shrink-0 border-r border-border/60 bg-linear-to-b from-background to-muted/20 md:block">
       {/* Brand strip */}
       <div className="px-4 pt-5 pb-3 flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-violet-600 shadow-md shadow-primary/40">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-primary to-violet-600 shadow-md shadow-primary/40">
           <Sparkles className="h-4 w-4 text-white" />
         </div>
         <span className="text-sm font-bold gradient-brand">RecruitAI</span>
       </div>
-      <div className="mx-4 mb-4 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+      <div className="mx-4 mb-4 h-px bg-linear-to-r from-transparent via-border to-transparent" />
       <nav className="flex flex-col gap-1 px-3 pb-4">
         <NavLinks />
       </nav>
@@ -76,14 +76,14 @@ export default function Sidebar() {
 
 export function MobileSidebar({ onClose }) {
   return (
-    <div className="bg-gradient-to-b from-background to-muted/20 min-h-full">
+    <div className="bg-linear-to-b from-background to-muted/20 min-h-full">
       <div className="px-4 pt-5 pb-3 flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-violet-600 shadow-md shadow-primary/40">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-primary to-violet-600 shadow-md shadow-primary/40">
           <Sparkles className="h-4 w-4 text-white" />
         </div>
         <span className="text-sm font-bold gradient-brand">RecruitAI</span>
       </div>
-      <div className="mx-4 mb-4 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+      <div className="mx-4 mb-4 h-px bg-linear-to-r from-transparent via-border to-transparent" />
       <nav className="flex flex-col gap-1 px-3 pb-4">
         <NavLinks onClick={onClose} />
       </nav>

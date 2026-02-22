@@ -35,7 +35,7 @@ export default function DashboardLayout({ children }) {
   if (!user) return null;
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-background via-background to-muted/30">
+    <div className="flex min-h-screen flex-col bg-linear-to-br from-background via-background to-muted/30">
       <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur-xl shadow-sm shadow-primary/5">
         <div className="flex h-14 items-center px-4 gap-4">
           <Sheet

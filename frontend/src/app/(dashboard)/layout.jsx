@@ -8,7 +8,7 @@ import DashboardNavbar from "@/components/layout/dashboard-navbar";
 import Sidebar, { MobileSidebar } from "@/components/layout/sidebar";
 import { LoadingSpinner } from "@/components/common/loading-state";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 
 export default function DashboardLayout({ children }) {
@@ -53,6 +53,7 @@ export default function DashboardLayout({ children }) {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-60 p-0">
+              <SheetTitle className="sr-only">Navigation menu</SheetTitle>
               <MobileSidebar onClose={() => actions.setSidebarOpen(false)} />
             </SheetContent>
           </Sheet>

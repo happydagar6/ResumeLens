@@ -17,6 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -292,6 +293,7 @@ export default function ScreeningDetailPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Generated Email Draft</DialogTitle>
+            <DialogDescription>Review and copy the AI-generated email to send to the candidate.</DialogDescription>
           </DialogHeader>
           {emailMutation.data && (
             <div className="space-y-4">

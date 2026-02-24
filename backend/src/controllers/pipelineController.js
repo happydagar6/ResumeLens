@@ -105,7 +105,7 @@ async function screenBatch(req, res, next) {
             );
 
             // Normalize settled results into a consistent shape
-            for (let j = 0; j < chunkResults.lengtj; j++) {
+            for (let j = 0; j < chunkResults.length; j++) {
                 const settled = chunkResults[j];
                 const resume = pendingResumes[i + j];
 

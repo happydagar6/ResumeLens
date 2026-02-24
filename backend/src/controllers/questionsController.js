@@ -98,9 +98,6 @@ async function generateBatch(req, res, next) {
 
     // Input validation
     if (!jobId) throw new CustomError("jobId is required", 400);
-    if (!mongoose.Types.ObjectId.isValid(jobId)) {
-        throw new CustomError("Invalid jobId format", 400);
-    }
 
     if (!mongoose.Types.ObjectId.isValid(jobId)) {
       throw new CustomError("Invalid job ID", 400);
@@ -123,7 +120,7 @@ async function generateBatch(req, res, next) {
       jobId,
       overallScore: { $gte: minScore },
     }).select(
-      "_id resumeId overallScore matchedSkills missingSkills strenghts recommendation",
+      "_id resumeId overallScore matchedSkills missingSkills strengths recommendation",
     );
 
     if (qualifyingScreenings.length === 0) {

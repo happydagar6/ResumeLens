@@ -73,11 +73,13 @@ async function screenBatch(req, res, next) {
             throw new CustomError("Access denied", 403);
         }
 
-        // Find all resumes that need screening
-        // Exclude already screened resumes and currenlty being screened
+        // Find all resumes that need screening.
+        // Only "parsed" resumes have extracted text ready for AI. "uploaded" means
+        // PDF not yet parsed; "screening" means already in-flight; "screened"/"error"
+        // means already finished — none of those should be re-queued.
         const pendingResumes = await Resume.find({
             jobId,
-            status: { $nin: ["uploaded", "parsed", "errored"] },
+            status: "parsed",
         }).select("_id candidateName status");
 
         if (pendingResumes.length === 0) {
@@ -124,11 +126,16 @@ async function screenBatch(req, res, next) {
             }
         }
 
-        // Build summary statistics
-        const succeeded = allResults.filter(r => r.success).length; // Count successes
-        const failed = allResults.filter(r => !r.success).length; // Count failures
-        const avgScore = succeeded.length > 0
-            ? Math.round(succeeded.reduce((sum, r) => sum + (r.score || 0), 0) / succeeded.length)
+        // Build summary statistics.
+        // Keep the filtered arrays so we can call .reduce() on them for avgScore,
+        // then derive the counts from those arrays. Storing .filter().length directly
+        // gives a number, which has no .length or .reduce().
+        const succeededResults = allResults.filter(r => r.success);
+        const failedResults = allResults.filter(r => !r.success);
+        const succeeded = succeededResults.length;
+        const failed = failedResults.length;
+        const avgScore = succeededResults.length > 0
+            ? Math.round(succeededResults.reduce((sum, r) => sum + (r.score || 0), 0) / succeededResults.length)
             : null;
 
         console.log(`[Pipeline] Batch screen completed — Job: ${job.title}, Total: ${allResults.length}, Succeeded: ${succeeded}, Failed: ${failed}, Avg Score: ${avgScore}`);
@@ -138,12 +145,12 @@ async function screenBatch(req, res, next) {
             jobTitle: job.title,
             summary: {
                 total: allResults.length,
-                succeeded: succeeded.length,
-                failed: failed.length,
+                succeeded,
+                failed,
                 averageScore: avgScore,
             },
             results: allResults,
-        }, `Batch screening complete — ${succeeded.length}/${allResults.length} succeeded`)
+        }, `Batch screening complete — ${succeeded}/${allResults.length} succeeded`)
     } catch (error) {
         next(error);
     }

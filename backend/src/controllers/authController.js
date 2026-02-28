@@ -21,18 +21,40 @@ const loginSchema = z.object({
     password: z.string().min(6),
 });
 
-function generateToken(userId, role) {
-    return jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRY || "7d",
+function generateAccessToken(userId, role) {
+    return jwt.sign({ id: userId, role, type: "access" }, process.env.JWT_SECRET, {
+        expiresIn: "15m",
     });
 }
 
-function setTokenCookie(res, token) {
-    res.cookie("token", token, {
+function generateRefreshToken(userId) {
+    return jwt.sign({ id: userId, type: "refresh" }, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET, {
+        expiresIn: "30d",
+    });
+}
+
+// Sets BOTH cookies in a single helper call.
+// - "token" → accessToken (15 min)
+// - "refreshToken" → refreshToken (30 days)
+function setAuthCookies(res, userId, role) {
+    const accessToken = generateAccessToken(userId, role);
+    const refreshToken = generateRefreshToken(userId);
+
+    const isProduction = process.env.NODE_ENV === "production";
+
+    res.cookie("token", accessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: isProduction,
         sameSite: "lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        maxAge: 15 * 60 * 1000, // 15 minutes
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: "lax",
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        path: "/api/auth", // only sent to auth endpoints
     });
 }
 
@@ -85,8 +107,7 @@ async function signup(req, res, next) {
         }
 
 
-        const token = generateToken(user._id, user.role);
-        setTokenCookie(res, token);
+        setAuthCookies(res, user._id, user.role);
 
         response(res, 201, { user: { id: user._id, name, email, company, role: user.role } }, "User created successfully");
     } catch (err) {
@@ -137,8 +158,7 @@ async function login(req, res, next) {
             throw new CustomError("Invalid credentials", 401);
         }
 
-        const token = generateToken(user._id, user.role);
-        setTokenCookie(res, token);
+        setAuthCookies(res, user._id, user.role);
 
         response(res, 200, { user: { id: user._id, name: user.name, email: user.email, company: user.company, role: user.role } }, "Logged in successfully");
     } catch (err) {
@@ -152,6 +172,12 @@ async function logout(req, res, next) {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
+        });
+        res.clearCookie("refreshToken", {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            path: "/api/auth",
         });
         response(res, 200, null, "Logged out successfully");
     } catch (err) {
@@ -230,4 +256,58 @@ async function getTeamMembers(req, res, next) {
     }
 }
 
-module.exports = { signup, login, logout, me, updateProfile, updatePassword, getInviteCode, getTeamMembers };
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/auth/refresh
+// No body required. Reads the refreshToken HttpOnly cookie, verifies it,
+// issues a fresh accessToken cookie.
+// This endpoint does NOT require authMiddleware (the accessToken is expired).
+// ─────────────────────────────────────────────────────────────────────────────
+async function refreshAccessToken(req, res, next) {
+    try {
+        const refreshToken = req.cookies?.refreshToken;
+        if (!refreshToken) {
+            throw new CustomError("No refresh token provided", 401);
+        }
+
+        // Verify the refresh token
+        let decoded;
+        try {
+            decoded = jwt.verify(
+                refreshToken,
+                process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET
+            );
+        } catch (err) {
+            throw new CustomError("Invalid or expired refresh token — please log in again", 401);
+        }
+
+        // Safety: ensure this is actually a refresh token, not an access token
+        if (decoded.type !== "refresh") {
+            throw new CustomError("Invalid token type", 401);
+        }
+
+        // Fetch the user to get their current role (role could have changed since token was issued)
+        const user = await User.findById(decoded.id).select("role isDeactivated");
+        if (!user) throw new CustomError("User not found", 401);
+
+        // Block deactivated users from refreshing
+        if (user.isDeactivated) {
+            throw new CustomError("Your account has been deactivated. Contact your admin.", 403);
+        }
+
+        // Issue only a new accessToken — do NOT re-issue the refresh token
+        const newAccessToken = generateAccessToken(decoded.id, user.role);
+
+        res.cookie("token", newAccessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            maxAge: 15 * 60 * 1000, // 15 minutes
+        });
+
+        response(res, 200, null, "Token refreshed successfully");
+    } catch (err) {
+        next(err);
+    }
+}
+
+module.exports = { signup, login, logout, me, updateProfile, updatePassword, getInviteCode, getTeamMembers, refreshAccessToken };

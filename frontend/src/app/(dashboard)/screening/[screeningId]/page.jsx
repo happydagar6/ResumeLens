@@ -21,8 +21,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Brain, Loader2, ThumbsUp, ThumbsDown, AlertTriangle, CheckCircle2, Mail, Copy, Check } from "lucide-react";
+import { ArrowLeft, Brain, Loader2, ThumbsUp, ThumbsDown, AlertTriangle, CheckCircle2, Mail, Copy, Check, Download } from "lucide-react";
 import Link from "next/link";
+import { generateScreeningPDF } from "@/lib/generate-screening-pdf";
 
 const recommendationLabels = {
   strong_yes: { label: "Strong Yes", icon: ThumbsUp, color: "text-green-600" },
@@ -89,7 +90,7 @@ export default function ScreeningDetailPage() {
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold tracking-tight">
             Screening: {candidate?.candidateName || "Candidate"}
           </h1>
@@ -97,6 +98,14 @@ export default function ScreeningDetailPage() {
             {job?.title} at {job?.company}
           </p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => generateScreeningPDF(screening, questions?.questions || [])}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          Export PDF
+        </Button>
       </div>
 
       {/* Score + Recommendation */}

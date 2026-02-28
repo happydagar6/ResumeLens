@@ -1,6 +1,40 @@
+// src/lib/api-client.js
+//
+// Central API client. All hooks (use-jobs, use-auth, etc.) use this.
+// Handles silent token refresh: when a 401 occurs, attempts to get a new
+// accessToken via the refreshToken cookie, then retries the original request.
+
 import { API_URL } from "./constants";
 
-export async function apiClient(endpoint, options = {}) {
+// ── Refresh state ─────────────────────────────────────────────────────────────────
+// If multiple requests fail with 401 at the same time, we only want ONE refresh
+// call, not five. These variables coordinate that.
+
+let isRefreshing = false;
+let refreshPromise = null;
+
+async function refreshAccessToken() {
+  if (isRefreshing) return refreshPromise;
+
+  isRefreshing = true;
+  refreshPromise = fetch(`${API_URL}/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+  })
+    .then(async (res) => {
+      if (!res.ok) throw new Error("Refresh failed");
+      return true;
+    })
+    .finally(() => {
+      isRefreshing = false;
+      refreshPromise = null;
+    });
+
+  return refreshPromise;
+}
+
+// ── Main API function ─────────────────────────────────────────────────────────────
+export async function apiClient(endpoint, options = {}, _isRetry = false) {
   const { body, method = "GET", headers = {}, ...rest } = options;
 
   const config = {
@@ -15,6 +49,20 @@ export async function apiClient(endpoint, options = {}) {
   };
 
   const res = await fetch(`${API_URL}${endpoint}`, config);
+
+  // ── 401 handling: try silent refresh ──────────────────────────────────────
+  if (res.status === 401 && !_isRetry) {
+    try {
+      await refreshAccessToken();
+      return apiClient(endpoint, options, true);
+    } catch {
+      const data = await res.json().catch(() => ({}));
+      const error = new Error(data.message || "Session expired — please log in again");
+      error.status = 401;
+      throw error;
+    }
+  }
+
   const data = await res.json();
 
   if (!res.ok) {

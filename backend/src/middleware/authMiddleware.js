@@ -20,6 +20,11 @@ const authMiddleware = async (req, res, next) => {
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+        // Reject refresh tokens used as access tokens
+        if (decoded.type && decoded.type !== "access") {
+            return next(new CustomError("Invalid token type", 401));
+        }
+
         // Fetch the full user from DB so req.user always has organizationId and
         // any other fields that are not stored in the JWT payload.
         const user = await User.findById(decoded.id).select("-password");

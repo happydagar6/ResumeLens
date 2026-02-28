@@ -240,7 +240,7 @@ export function generateScreeningPDF(screening, questions = []) {
 
   // ── 5. STRENGTHS & WEAKNESSES ─────────────────────────────────────────────
 
-  if (screening.strengths) {
+  if (screening.strengths?.length > 0) {
     checkPageBreak(25);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
@@ -251,13 +251,27 @@ export function generateScreeningPDF(screening, questions = []) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(...COLORS.dark);
-    const strengthLines = doc.splitTextToSize(screening.strengths, contentWidth);
-    checkPageBreak(strengthLines.length * 4 + 4);
-    doc.text(strengthLines, margin, y);
-    y += strengthLines.length * 4 + 4;
+
+    if (Array.isArray(screening.strengths)) {
+      // New format: render as bullet list
+      screening.strengths.forEach((s) => {
+        checkPageBreak(8);
+        doc.text("\u2022", margin + 2, y);
+        const lines = doc.splitTextToSize(s, contentWidth - 8);
+        doc.text(lines, margin + 8, y);
+        y += lines.length * 4 + 2;
+      });
+    } else {
+      // Old format: render as paragraph
+      const strengthLines = doc.splitTextToSize(screening.strengths, contentWidth);
+      checkPageBreak(strengthLines.length * 4 + 4);
+      doc.text(strengthLines, margin, y);
+      y += strengthLines.length * 4 + 4;
+    }
+    y += 2;
   }
 
-  if (screening.weaknesses) {
+  if (screening.weaknesses?.length > 0) {
     checkPageBreak(25);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
@@ -268,10 +282,24 @@ export function generateScreeningPDF(screening, questions = []) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(...COLORS.dark);
-    const weaknessLines = doc.splitTextToSize(screening.weaknesses, contentWidth);
-    checkPageBreak(weaknessLines.length * 4 + 4);
-    doc.text(weaknessLines, margin, y);
-    y += weaknessLines.length * 4 + 4;
+
+    if (Array.isArray(screening.weaknesses)) {
+      // New format: render as bullet list
+      screening.weaknesses.forEach((w) => {
+        checkPageBreak(8);
+        doc.text("\u2022", margin + 2, y);
+        const lines = doc.splitTextToSize(w, contentWidth - 8);
+        doc.text(lines, margin + 8, y);
+        y += lines.length * 4 + 2;
+      });
+    } else {
+      // Old format: render as paragraph
+      const weaknessLines = doc.splitTextToSize(screening.weaknesses, contentWidth);
+      checkPageBreak(weaknessLines.length * 4 + 4);
+      doc.text(weaknessLines, margin, y);
+      y += weaknessLines.length * 4 + 4;
+    }
+    y += 2;
   }
 
   drawLine();

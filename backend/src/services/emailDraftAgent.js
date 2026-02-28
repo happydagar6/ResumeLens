@@ -67,7 +67,7 @@ async function generateEmailDraft({ emailType, candidateName, jobTitle, company,
         jobTitle: jobTitle || "the position",
         company: company || "our company",
         score: score ?? "N/A",
-        strengths: strengths || "Not specified",
+        strengths: Array.isArray(strengths) ? strengths.join("; ") : (strengths || "Not specified"),
         matchedSkills: Array.isArray(matchedSkills) ? matchedSkills.join(", ") : "Not specified",
         missingSkills: Array.isArray(missingSkills) ? missingSkills.join(", ") : "None specified",
     });

@@ -216,7 +216,7 @@ export default function ScreeningDetailPage() {
 
       {/* Strengths & Weaknesses */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {screening.strengths && (
+        {screening.strengths?.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="text-base text-green-600">
@@ -224,14 +224,28 @@ export default function ScreeningDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {screening.strengths}
-              </p>
+              {Array.isArray(screening.strengths) ? (
+                <ul className="space-y-2">
+                  {screening.strengths.map((s, i) => (
+                    <li
+                      key={i}
+                      className="flex items-start gap-2 text-sm text-muted-foreground"
+                    >
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-500" />
+                      <span>{s}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {screening.strengths}
+                </p>
+              )}
             </CardContent>
           </Card>
         )}
 
-        {screening.weaknesses && (
+        {screening.weaknesses?.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="text-base text-red-500">
@@ -239,9 +253,23 @@ export default function ScreeningDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {screening.weaknesses}
-              </p>
+              {Array.isArray(screening.weaknesses) ? (
+                <ul className="space-y-2">
+                  {screening.weaknesses.map((w, i) => (
+                    <li
+                      key={i}
+                      className="flex items-start gap-2 text-sm text-muted-foreground"
+                    >
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+                      <span>{w}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {screening.weaknesses}
+                </p>
+              )}
             </CardContent>
           </Card>
         )}

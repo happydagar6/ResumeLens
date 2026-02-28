@@ -37,6 +37,10 @@ const userSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "Organization",
             default: null,
+        },
+        isDeactivated: {
+            type: Boolean,
+            default: false,
         }
     },
     { timestamps: true }

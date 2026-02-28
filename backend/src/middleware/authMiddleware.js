@@ -25,6 +25,11 @@ const authMiddleware = async (req, res, next) => {
         const user = await User.findById(decoded.id).select("-password");
         if (!user) return next(new CustomError("User not found", 401));
 
+        // New: blok deactivated accounts even if they have a valid token
+        if (user.isDeactivated) {
+            return next(new CustomError("Your account has been deactivated. Contact your admin.", 403));
+        }
+
         req.user = {
             id: user._id.toString(),
             role: user.role,

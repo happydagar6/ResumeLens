@@ -18,6 +18,7 @@ const pipelineRoutes = require('./routes/pipelineRoutes');
 const statsRoutes = require('./routes/statsRoutes');
 const usersRoutes = require('./routes/usersRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
@@ -44,6 +45,7 @@ app.get("/", (req, res) => {
             questions: "/api/questions",
             pipeline: "/api/pipeline",
             stats: "/api/stats",
+            admin: "/api/admin",
         },
     });
 });
@@ -63,7 +65,7 @@ app.use("/api/pipeline", pipelineRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/users", usersRoutes);
 app.use("/api/notifications", notificationRoutes);
-
+app.use("/api/admin", adminRoutes);
 // Error handler (must be last)
 app.use(errorHandler);
 

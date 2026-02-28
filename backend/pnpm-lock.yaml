@@ -53,6 +53,9 @@ importers:
       openai:
         specifier: ^6.22.0
         version: 6.22.0(zod@4.3.6)
+      p-queue:
+        specifier: ^9.1.0
+        version: 9.1.0
       pdf-parse:
         specifier: ^2.4.5
         version: 2.4.5

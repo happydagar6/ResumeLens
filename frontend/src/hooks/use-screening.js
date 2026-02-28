@@ -52,13 +52,14 @@ export function useRunScreening() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ resumeId }) => api.post("/pipeline/screen", { resumeId }), // Uses LangGraph pipeline (Phase 4)
+    mutationFn: ({ resumeId }) => api.post("/pipeline/screen", { resumeId }),
     onSuccess: (_, variables) => {
-      // Refresh the resume list (status changes from "parsed" → "screened")
+      // The API returns 202 — screening is queued, not done yet.
+      // Invalidate resume list so status shows "screening"
       queryClient.invalidateQueries({ queryKey: RESUME_KEYS.byJob(variables.jobId) });
-      // Refresh the screenings list for this job
-      queryClient.invalidateQueries({ queryKey: SCREENING_KEYS.byJob(variables.jobId) });
-      toast.success("Resume screened successfully!");
+      toast.success("Screening queued — processing will begin shortly");
+      // NOTE: The component using this hook should now enable usePipelineStatus
+      // polling to track when it completes.
     },
     onError: (err) => {
       toast.error(err.message || "Screening failed");
@@ -126,4 +127,49 @@ export function useBulkScreening() {
       toast.error(err.message || "Bulk screening failed");
     }
   })
+}
+
+// ── Poll pipeline status until screening completes ────────────────────────────
+// Used after triggering a screen — polls every 3s until resume.status is final.
+export function usePipelineStatus(resumeId, enabled = false) {
+    const { data, isLoading } = useQuery({
+        queryKey: ["pipeline-status", resumeId],
+        queryFn: () => api.get(`/pipeline/status/${resumeId}`),
+        enabled: Boolean(resumeId) && enabled,
+        refetchInterval: (query) => {
+            // Stop polling once the resume reaches a terminal state
+            const status = query.state.data?.data?.status;
+            if (status === "screened" || status === "error") return false;
+            return 3000; // poll every 3 seconds
+        },
+    });
+
+    return {
+        pipelineData: data?.data ?? null,
+        isPolling: isLoading,
+    };
+}
+
+// ── POST /api/pipeline/rescreen ───────────────────────────────────────────────
+// Deletes old screening + questions, re-runs the AI pipeline.
+// Caller: useRescreen().mutate({ resumeId, screeningId, jobId })
+export function useRescreen() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ resumeId }) => api.post("/pipeline/rescreen", { resumeId }),
+        onSuccess: (_, variables) => {
+            // Refresh both resume list + screening list
+            queryClient.invalidateQueries({ queryKey: RESUME_KEYS.byJob(variables.jobId) });
+            queryClient.invalidateQueries({ queryKey: SCREENING_KEYS.byJob(variables.jobId) });
+            // Refresh the individual screening detail (in case user is on that page)
+            if (variables.screeningId) {
+                queryClient.invalidateQueries({ queryKey: SCREENING_KEYS.detail(variables.screeningId) });
+            }
+            toast.success("Resume re-screened successfully!");
+        },
+        onError: (err) => {
+            toast.error(err.message || "Re-screening failed");
+        },
+    });
 }

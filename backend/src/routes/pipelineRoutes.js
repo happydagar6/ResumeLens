@@ -3,7 +3,7 @@
 const express = require("express");
 const authMiddleware = require("../middleware/authMiddleware");
 const authorize = require("../middleware/authorize");
-const { screenSingle, screenBatch, getPipelineStatus } = require("../controllers/pipelineController");
+const { screenSingle, screenBatch, getPipelineStatus, rescreenSingle } = require("../controllers/pipelineController");
 
 const router = express.Router();
 
@@ -15,6 +15,7 @@ router.get("/status/:resumeId", getPipelineStatus);
 
 // WRITE: only recruiters and admins can trigger AI screening
 router.post("/screen", authorize("recruiter", "admin"), screenSingle);
+router.post("/rescreen", authorize("recruiter", "admin"), rescreenSingle);
 router.post("/batch-screen", authorize("recruiter", "admin"), screenBatch);
 
 module.exports = router;

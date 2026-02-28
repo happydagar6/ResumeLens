@@ -15,12 +15,14 @@ const { CustomError } = require("../utils/errors");
 // Runs the full LangGraph screening pipeline for a single resume.
 // ─────────────────────────────────────────────────────────────────────────────
 
+const { enqueueScreening, enqueueBatchScreening, getQueueStats } = require("../services/backgroundQueue");
+
 async function screenSingle(req, res, next) {
     try {
         const { resumeId } = req.body;
         if (!resumeId) throw new CustomError("resumeId is required", 400);
 
-        // Ownership check: verify the resume's parent job belongs to this user
+        // Ownership check (same as before)
         const resume = await Resume.findById(resumeId).select("jobId");
         if (!resume) throw new CustomError("Resume not found", 404);
         const job = await Job.findById(resume.jobId).select("createdBy");
@@ -29,14 +31,81 @@ async function screenSingle(req, res, next) {
             throw new CustomError("Access denied", 403);
         }
 
-        console.log(`[Pipeline] Starting screening pipeline for resume ${resumeId}...`);
+        // Enqueue — returns immediately with a ProcessingJob document
+        const processingJob = await enqueueScreening({
+            resumeId,
+            jobId: resume.jobId,
+            userId: req.user.id,
+        });
+
+        // HTTP 202 Accepted — "I received your request, it's being processed"
+        res.status(202).json({
+            success: true,
+            message: processingJob.status === "queued"
+                ? "Screening queued — processing will begin shortly"
+                : "Screening already in progress",
+            data: {
+                processingJobId: processingJob._id,
+                resumeId,
+                status: processingJob.status,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/pipeline/rescreen
+// Body: { resumeId: string }
+// Deletes existing screening + interview questions, resets resume status,
+// then re-runs the full LangGraph pipeline.
+// ─────────────────────────────────────────────────────────────────────────────
+async function rescreenSingle(req, res, next) {
+    try {
+        const { resumeId } = req.body;
+        if (!resumeId) throw new CustomError("resumeId is required", 400);
+
+        // Ownership check
+        const resume = await Resume.findById(resumeId).select("jobId status");
+        if (!resume) throw new CustomError("Resume not found", 404);
+        const job = await Job.findById(resume.jobId).select("createdBy");
+        if (!job) throw new CustomError("Associated job not found", 404);
+        if (req.user.role !== "admin" && job.createdBy?.toString() !== req.user.id) {
+            throw new CustomError("Access denied", 403);
+        }
+
+        // Prevent re-screening if already in progress
+        if (resume.status === "screening") {
+            throw new CustomError("This resume is currently being screened", 409);
+        }
+
+        // Delete old screening + interview questions (clean slate)
+        const Screening = require("../models/screeningModel");
+        const InterviewQuestion = require("../models/interviewQuestionModel");
+
+        const oldScreening = await Screening.findOne({ resumeId: resume._id });
+        if (oldScreening) {
+            await InterviewQuestion.deleteMany({ screeningId: oldScreening._id });
+            await Screening.deleteOne({ _id: oldScreening._id });
+            console.log(`[Pipeline] Deleted old screening ${oldScreening._id} + questions for re-screen`);
+        }
+
+        // Reset resume status so the pipeline can run fresh
+        await Resume.findByIdAndUpdate(resumeId, {
+            status: "parsed",
+            screeningError: null,
+        });
+
+        // Now run the pipeline (or enqueue if you've implemented Feature 1)
+        // --- Option A: If you have NOT implemented background queue yet: ---
+        console.log(`[Pipeline] Re-screening resume ${resumeId}...`);
         const result = await runScreeningPipeline(resumeId);
-        
+
         if (!result.success) {
-            // Pipeline failed - return 422 (Unprocessable Entity) with details
             return res.status(422).json({
                 success: false,
-                message: "Screening pipeline failed",
+                message: "Re-screening failed",
                 error: result.error,
                 warnings: result.warnings,
             });
@@ -48,7 +117,18 @@ async function screenSingle(req, res, next) {
             score: result.score,
             recommendation: result.recommendation,
             warnings: result.warnings,
-        }, "Resume screened successfully");
+        }, "Resume re-screened successfully");
+
+        // --- Option B: If you HAVE implemented background queue (Feature 1): ---
+        // const { enqueueScreening } = require("../services/backgroundQueue");
+        // const processingJob = await enqueueScreening({
+        //     resumeId, jobId: resume.jobId, userId: req.user.id
+        // });
+        // res.status(202).json({
+        //     success: true,
+        //     message: "Re-screening queued",
+        //     data: { processingJobId: processingJob._id, resumeId, status: "queued" },
+        // });
     } catch (error) {
         next(error);
     }
@@ -63,94 +143,44 @@ async function screenSingle(req, res, next) {
 
 async function screenBatch(req, res, next) {
     try {
-        const { jobId, concurrency = 3 } = req.body;
+        const { jobId } = req.body;
         if (!jobId) throw new CustomError("jobId is required", 400);
 
-        // Verify job exists AND the requester owns it (or is admin)
         const job = await Job.findById(jobId);
         if (!job) throw new CustomError("Job not found", 404);
         if (req.user.role !== "admin" && job.createdBy?.toString() !== req.user.id) {
             throw new CustomError("Access denied", 403);
         }
 
-        // Find all resumes that need screening.
-        // Only "parsed" resumes have extracted text ready for AI. "uploaded" means
-        // PDF not yet parsed; "screening" means already in-flight; "screened"/"error"
-        // means already finished — none of those should be re-queued.
         const pendingResumes = await Resume.find({
             jobId,
             status: "parsed",
-        }).select("_id candidateName status");
+        }).select("_id");
 
         if (pendingResumes.length === 0) {
-            return response(res, 200, {
-                jobId,
-                queued: 0,
-                results: [],
-            }, "No resumes need screening for this job");
-        }
-        
-        console.log(`[Pipeline] Batch screen started — Job: ${job.title}, Resumes: ${pendingResumes.length}, Concurrency: ${concurrency}`);
-
-        // Process resumes in parallel chunks
-        // Example with concurrency = 3 and & resumes: [3, 3, 1];
-        const allResults = [];
-        const resumeIds = pendingResumes.map(r => r._id.toString());
-
-        for (let i = 0; i < resumeIds.length; i += concurrency) {
-            const chunk = resumeIds.slice(i, i + concurrency);
-            console.log(`[Pipeline] Processing chunk ${Math.floor(i / concurrency) + 1}: ${chunk.length} resume(s)`);
-
-            // Promise.allSettled - if one resume fails, other still complete
-            const chunkResults = await Promise.allSettled(
-                chunk.map(id => runScreeningPipeline(id))
-            );
-
-            // Normalize settled results into a consistent shape
-            for (let j = 0; j < chunkResults.length; j++) {
-                const settled = chunkResults[j];
-                const resume = pendingResumes[i + j];
-
-                if(settled.status === "fulfilled") {
-                    allResults.push(settled.value);
-                } else {
-                    // Promise itself rejected (should be rare - runScreeningPipeline catched internally)
-                    allResults.push({
-                        success: false,
-                        resumeId: chunk[j],
-                        candidateName: resume?.candidateName,
-                        error: settled.reason?.message || "Unknown error",
-                        warnings: [],
-                    });
-                }
-            }
+            return response(res, 200, { jobId, queued: 0 }, "No resumes need screening");
         }
 
-        // Build summary statistics.
-        // Keep the filtered arrays so we can call .reduce() on them for avgScore,
-        // then derive the counts from those arrays. Storing .filter().length directly
-        // gives a number, which has no .length or .reduce().
-        const succeededResults = allResults.filter(r => r.success);
-        const failedResults = allResults.filter(r => !r.success);
-        const succeeded = succeededResults.length;
-        const failed = failedResults.length;
-        const avgScore = succeededResults.length > 0
-            ? Math.round(succeededResults.reduce((sum, r) => sum + (r.score || 0), 0) / succeededResults.length)
-            : null;
-
-        console.log(`[Pipeline] Batch screen completed — Job: ${job.title}, Total: ${allResults.length}, Succeeded: ${succeeded}, Failed: ${failed}, Avg Score: ${avgScore}`);
-
-        response(res, 200, {
+        const resumeIds = pendingResumes.map((r) => r._id.toString());
+        const jobs = await enqueueBatchScreening({
+            resumeIds,
             jobId,
-            jobTitle: job.title,
-            summary: {
-                total: allResults.length,
-                succeeded,
-                failed,
-                averageScore: avgScore,
+            userId: req.user.id,
+        });
+
+        res.status(202).json({
+            success: true,
+            message: `${jobs.length} resume(s) queued for screening`,
+            data: {
+                jobId,
+                queued: jobs.length,
+                processingJobs: jobs.map((j) => ({
+                    processingJobId: j._id,
+                    resumeId: j.resumeId,
+                    status: j.status,
+                })),
             },
-            results: allResults,
-        }, `Batch screening complete — ${succeeded}/${allResults.length} succeeded`)
+        });
     } catch (error) {
         next(error);
     }
@@ -169,20 +199,29 @@ async function getPipelineStatus(req, res, next) {
         if (!resume) throw new CustomError("Resume not found", 404);
 
         const Screening = require("../models/screeningModel");
-        const screening = await Screening.findOne({ resumeId: resume._id }).select(
-            "overallScore recommendation matchedSkills missingSkills createdAt"
-        );
+        const ProcessingJob = require("../models/processingJobModel");
+
+        const [screening, processingJob] = await Promise.all([
+            Screening.findOne({ resumeId: resume._id }).select(
+                "overallScore recommendation matchedSkills missingSkills createdAt"
+            ),
+            ProcessingJob.findOne({ resumeId: resume._id })
+                .sort({ createdAt: -1 })
+                .select("status startedAt completedAt error"),
+        ]);
 
         response(res, 200, {
             resumeId: resume._id,
             candidateName: resume.candidateName,
-            status: resume.status,
+            status: resume.status,          // "screening" | "screened" | "error"
             screeningError: resume.screeningError,
             screening: screening || null,
+            processingJob: processingJob || null,  // NEW: queue status
         });
     } catch (err) {
         next(err);
     }
 }
 
-module.exports = { screenSingle, screenBatch, getPipelineStatus };
+
+module.exports = { screenSingle, screenBatch, getPipelineStatus, rescreenSingle };

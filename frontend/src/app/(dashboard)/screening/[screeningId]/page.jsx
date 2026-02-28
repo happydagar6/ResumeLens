@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { useScreening, useMakeDecision, useGenerateEmail } from "@/hooks/use-screening";
+import {
+  useScreening,
+  useMakeDecision,
+  useGenerateEmail,
+  useRescreen,
+} from "@/hooks/use-screening";
 import { useQuestions, useGenerateQuestions } from "@/hooks/use-questions";
 import { usePermissions } from "@/hooks/use-permissions";
 import ScoreGauge from "@/components/dashboard/score-gauge";
@@ -21,7 +26,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Brain, Loader2, ThumbsUp, ThumbsDown, AlertTriangle, CheckCircle2, Mail, Copy, Check, Download } from "lucide-react";
+import {
+  ArrowLeft,
+  Brain,
+  Loader2,
+  ThumbsUp,
+  ThumbsDown,
+  AlertTriangle,
+  CheckCircle2,
+  Mail,
+  Copy,
+  Check,
+  Download,
+  RefreshCw,
+} from "lucide-react";
 import Link from "next/link";
 import { generateScreeningPDF } from "@/lib/generate-screening-pdf";
 
@@ -34,6 +52,7 @@ const recommendationLabels = {
 };
 
 export default function ScreeningDetailPage() {
+  const rescreenMutation = useRescreen();
   const { screeningId } = useParams();
 
   // â”€â”€ Data fetching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -62,7 +81,7 @@ export default function ScreeningDetailPage() {
     setEmailType(type);
     emailMutation.mutate(
       { screeningId, emailType: type },
-      { onSuccess: () => setEmailDialogOpen(true) }
+      { onSuccess: () => setEmailDialogOpen(true) },
     );
   };
 
@@ -74,9 +93,12 @@ export default function ScreeningDetailPage() {
   };
 
   if (screeningLoading || questionsLoading) return <LoadingSpinner />;
-  if (!screening) return <p className="text-muted-foreground">Screening not found.</p>;
+  if (!screening)
+    return <p className="text-muted-foreground">Screening not found.</p>;
 
-  const rec = recommendationLabels[screening.recommendation] || recommendationLabels.maybe;
+  const rec =
+    recommendationLabels[screening.recommendation] ||
+    recommendationLabels.maybe;
   const candidate = screening.resumeId;
   const job = screening.jobId;
   const hasFlags = screening.validationFlags?.length > 0;
@@ -101,10 +123,32 @@ export default function ScreeningDetailPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => generateScreeningPDF(screening, questions?.questions || [])}
+          onClick={() =>
+            generateScreeningPDF(screening, questions?.questions || [])
+          }
         >
           <Download className="mr-2 h-4 w-4" />
           Export PDF
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={rescreenMutation.isPending}
+          onClick={() =>
+            rescreenMutation.mutate({
+              resumeId: candidate?._id,
+              screeningId,
+              jobId: job?._id,
+            })
+          }
+        >
+          {rescreenMutation.isPending ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="mr-2 h-4 w-4" />
+          )}
+          Re-Screen
         </Button>
       </div>
 
@@ -124,7 +168,9 @@ export default function ScreeningDetailPage() {
             <CardTitle className="text-base">Recommendation</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`flex items-center gap-2 text-xl font-bold ${rec.color}`}>
+            <div
+              className={`flex items-center gap-2 text-xl font-bold ${rec.color}`}
+            >
               {rec.icon && <rec.icon className="h-6 w-6" />}
               {rec.label}
             </div>
@@ -141,7 +187,8 @@ export default function ScreeningDetailPage() {
           </AlertTitle>
           <AlertDescription className="text-yellow-700 dark:text-yellow-400">
             <p className="mb-2 text-xs">
-              These are AI validation warnings, not errors. Review the result manually if you see unexpected flags.
+              These are AI validation warnings, not errors. Review the result
+              manually if you see unexpected flags.
             </p>
             <ul className="space-y-1">
               {screening.validationFlags.map((flag, i) => (
@@ -172,7 +219,9 @@ export default function ScreeningDetailPage() {
         {screening.strengths && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base text-green-600">Strengths</CardTitle>
+              <CardTitle className="text-base text-green-600">
+                Strengths
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">
@@ -185,7 +234,9 @@ export default function ScreeningDetailPage() {
         {screening.weaknesses && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base text-red-500">Weaknesses</CardTitle>
+              <CardTitle className="text-base text-red-500">
+                Weaknesses
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">
@@ -270,14 +321,15 @@ export default function ScreeningDetailPage() {
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">AI Email Draft</h2>
         <p className="text-sm text-muted-foreground">
-          Generate a professional email for this candidate based on the screening result.
+          Generate a professional email for this candidate based on the
+          screening result.
         </p>
         <div className="flex flex-wrap gap-2">
           {[
-            { type: "shortlisted",     label: "Shortlist Email" },
-            { type: "rejection",       label: "Rejection Email" },
+            { type: "shortlisted", label: "Shortlist Email" },
+            { type: "rejection", label: "Rejection Email" },
             { type: "interview_invite", label: "Interview Invite" },
-            { type: "offer",           label: "Offer Email" },
+            { type: "offer", label: "Offer Email" },
           ].map((opt) => (
             <Button
               key={opt.type}
@@ -302,18 +354,27 @@ export default function ScreeningDetailPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Generated Email Draft</DialogTitle>
-            <DialogDescription>Review and copy the AI-generated email to send to the candidate.</DialogDescription>
+            <DialogDescription>
+              Review and copy the AI-generated email to send to the candidate.
+            </DialogDescription>
           </DialogHeader>
           {emailMutation.data && (
             <div className="space-y-4">
               {/* Subject */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">Subject</span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Subject
+                  </span>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => copyText(emailMutation.data.data.subject, setCopiedSubject)}
+                    onClick={() =>
+                      copyText(
+                        emailMutation.data.data.subject,
+                        setCopiedSubject,
+                      )
+                    }
                   >
                     {copiedSubject ? (
                       <Check className="h-4 w-4 text-green-600" />
@@ -330,11 +391,15 @@ export default function ScreeningDetailPage() {
               {/* Body */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">Body</span>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Body
+                  </span>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => copyText(emailMutation.data.data.body, setCopiedBody)}
+                    onClick={() =>
+                      copyText(emailMutation.data.data.body, setCopiedBody)
+                    }
                   >
                     {copiedBody ? (
                       <Check className="h-4 w-4 text-green-600" />

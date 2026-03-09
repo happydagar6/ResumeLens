@@ -315,7 +315,7 @@ async function analyzeBias(req, res, next) {
         )
         response(res, 200, { biasFlags }, "Bias analysis completed and saved");
     } catch (error) {
-        console.error(`[BiasDetection] Error analyzing job ${job._id}:`, error);
+        console.error(`[BiasDetection] Error analyzing job ${req.params.id}:`, error);
         next(error);
     }
 }

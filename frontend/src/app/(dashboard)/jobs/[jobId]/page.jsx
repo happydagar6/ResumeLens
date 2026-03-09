@@ -281,7 +281,7 @@ export default function JobDetailPage() {
           </div>
         </div>
       )}
-      
+
       {/* AI Bias Report */}
       {canEditJob && (
         <>
@@ -301,10 +301,10 @@ export default function JobDetailPage() {
               <Button
                 variant="outline"
                 size="sm"
-                disabled={analyzesBiasMutation.isPending}
-                onClick={() => analyzesBiasMutation.mutate()}
+                disabled={analyzeBiasMutation.isPending}
+                onClick={() => analyzeBiasMutation.mutate()}
               >
-                {analyzesBiasMutation.isPending ? (
+                {analyzeBiasMutation.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <ShieldCheck className="mr-2 h-4 w-4" />
@@ -314,7 +314,7 @@ export default function JobDetailPage() {
             </div>
 
             {/* If biasFlags is null, show the call-to-action description */}
-            {!job.biasFlags && !analyzesBiasMutation.isPending && (
+            {!job.biasFlags && !analyzeBiasMutation.isPending && (
               <p className="text-sm text-muted-foreground">
                 Run an AI scan to detect potentially biased language in this job
                 description — gendered terms, ageist phrases, and culturally
@@ -323,7 +323,7 @@ export default function JobDetailPage() {
             )}
 
             {/* Loading state */}
-            {analyzesBiasMutation.isPending && (
+            {analyzeBiasMutation.isPending && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Scanning job description for biased language…

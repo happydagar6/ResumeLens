@@ -2,12 +2,11 @@
 
 const mongoose = require("mongoose");
 const Job = require("../models/jobModel");
-const Resume = require("../models/resumeModel");
-const Screening = require("../models/screeningModel");
 const { response } = require("../utils/response");
 const { CustomError } = require("../utils/errors");
 const { z } = require("zod");
 const { analyzeJD } = require("../services/jdAnalyzerAgent");
+const { detectBias } = require("../services/biasDetectionAgent");
 
 const jobSchema = z.object({
     title: z.string().min(2),
@@ -268,4 +267,57 @@ async function assignJob(req, res, next) {
     }
 }
 
-module.exports = { createJob, getJobs, getJobById, updateJob, deleteJob, assignJob };
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/jobs/:id/analyze-bias
+//
+// Runs the bias detection AI on a job's description + requirements.
+// Stores the result in job.biasFlags. Idempotent — calling it again re-analyzes
+// and overwrites the previous result (useful after editing the JD).
+//
+// Accessible by: recruiter (job creator) and admin only.
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function analyzeBias(req, res, next) {
+    try {
+        // 1. Load the job - same ownership filter pattern as updateJob
+        const filter = req.user.role === "admin"
+        ? { _id: req.params.id }
+        : { _id: req.params.id, createdBy: req.user.id };
+
+        const job = await Job.findOne(filter);
+        if (!job) throw new CustomError("Job not found or access denied", 404);
+
+        // 2. Build the text to analyze - combine description + requirements
+        // This ensures we catch bias in both sections
+        const jobText = [
+            job.description,
+            job.requirements ? `\n\nRequirements:\n${job.requirements}` : "",
+        ].join("").trim(); // Avoid extra whitespace if requirements is missing
+
+        if (!jobText) throw new CustomError("Job description and requirements are both empty", 400);
+        console.log(`[BiasDetection] Analyzing job ${job._id}: ${job.title}`);
+
+        // 3. Run the bias detection agent
+        const biasResult = await detectBias(jobText);
+
+        // 4. Persist to MongoDB - add timestamp so UI can show "last analyzed"
+        const biasFlags = {
+            // Why spread operator? Because biasResult may contain extra fields like summary that we also want to store
+            ...biasResult,
+            analyzedAt: new Date(), // Timestamp for when the analysis was done
+        };
+
+        await Job.findByIdAndUpdate(job._id, { biasFlags });
+        console.log(
+            `[BiasDetection] Job ${job._id} - Score: ${biasResult.biasScore}, Flags: ${biasResult.flagCount}`
+        )
+        response(res, 200, { biasFlags }, "Bias analysis completed and saved");
+    } catch (error) {
+        console.error(`[BiasDetection] Error analyzing job ${job._id}:`, error);
+        next(error);
+    }
+}
+
+module.exports = { createJob, getJobs, getJobById, updateJob, deleteJob, assignJob, analyzeBias };

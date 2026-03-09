@@ -49,6 +49,10 @@ const jobSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.Mixed,  // Stores any JSON object
             default: null,
         },
+        biasFlags: {
+            type: mongoose.Schema.Types.Mixed,  // e.g. { genderBias: true, ageBias: false }
+            default: null,
+        },
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",

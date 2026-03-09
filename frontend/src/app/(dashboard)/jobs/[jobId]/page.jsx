@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAnalyzeBias } from "@/hooks/use-jobs";
+import BiasReport from "@/components/dashboard/bias-report";
+import { ShieldCheck } from "lucide-react";
 import { useJob, useDeleteJob, useAssignHiringManager } from "@/hooks/use-jobs";
 import { useResumesByJob, useDeleteResume } from "@/hooks/use-resume";
 import { useRunScreening, useBulkScreening } from "@/hooks/use-screening";
@@ -28,7 +31,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2, BarChart3, MapPin, Clock, Pencil, UserPlus, X, Users, Loader2, Zap, Copy, Check } from "lucide-react";
+import {
+  Trash2,
+  BarChart3,
+  MapPin,
+  Clock,
+  Pencil,
+  UserPlus,
+  X,
+  Users,
+  Loader2,
+  Zap,
+  Copy,
+  Check,
+} from "lucide-react";
 import Link from "next/link";
 
 export default function JobDetailPage() {
@@ -36,7 +52,13 @@ export default function JobDetailPage() {
   const queryClient = useQueryClient();
 
   // Permissions must come first — used to conditionally enable queries below
-  const { canEditJob, canDeleteJob, canUploadResume, canRunScreening, canAssignHiringManager } = usePermissions();
+  const {
+    canEditJob,
+    canDeleteJob,
+    canUploadResume,
+    canRunScreening,
+    canAssignHiringManager,
+  } = usePermissions();
 
   // State
   const [showAssignPanel, setShowAssignPanel] = useState(false);
@@ -52,7 +74,9 @@ export default function JobDetailPage() {
   const { job, isLoading: jobLoading } = useJob(jobId);
   const { resumes, isLoading: resumesLoading } = useResumesByJob(jobId);
   // Only fetch HM list when recruiter/admin (hiring managers cannot assign)
-  const { hiringManagers } = useHiringManagers({ enabled: canAssignHiringManager });
+  const { hiringManagers } = useHiringManagers({
+    enabled: canAssignHiringManager,
+  });
 
   // Mutations
   const deleteJobMutation = useDeleteJob();
@@ -60,6 +84,7 @@ export default function JobDetailPage() {
   const screenMutation = useRunScreening();
   const bulkMutation = useBulkScreening();
   const assignHMMutation = useAssignHiringManager(jobId);
+  const analyzeBiasMutation = useAnalyzeBias(jobId);
 
   // Analytics
   const { analytics } = useJobAnalytics(jobId);
@@ -97,7 +122,12 @@ export default function JobDetailPage() {
 
         <div className="flex gap-2">
           {/* Copy job link */}
-          <Button variant="ghost" size="icon" onClick={copyJobLink} title="Copy job link">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={copyJobLink}
+            title="Copy job link"
+          >
             {linkCopied ? (
               <Check className="h-4 w-4 text-green-500" />
             ) : (
@@ -120,7 +150,10 @@ export default function JobDetailPage() {
             </Button>
           )}
           {canAssignHiringManager && (
-            <Button variant="outline" onClick={() => setShowAssignPanel((v) => !v)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowAssignPanel((v) => !v)}
+            >
               <Users className="mr-2 h-4 w-4" />
               Assign HM
             </Button>
@@ -136,8 +169,8 @@ export default function JobDetailPage() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete Job?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently delete this job posting. This action cannot be
-                    undone.
+                    This will permanently delete this job posting. This action
+                    cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -158,7 +191,9 @@ export default function JobDetailPage() {
       {/* Assigned Hiring Managers */}
       {job.assignedTo?.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          <span className="text-xs text-muted-foreground self-center">Assigned HMs:</span>
+          <span className="text-xs text-muted-foreground self-center">
+            Assigned HMs:
+          </span>
           {job.assignedTo.map((hm) => (
             <Badge key={hm._id} variant="secondary" className="gap-1">
               <UserPlus className="h-3 w-3" />
@@ -166,7 +201,12 @@ export default function JobDetailPage() {
               {canAssignHiringManager && (
                 <button
                   className="ml-1 hover:text-destructive"
-                  onClick={() => assignHMMutation.mutate({ userId: hm._id, action: "remove" })}
+                  onClick={() =>
+                    assignHMMutation.mutate({
+                      userId: hm._id,
+                      action: "remove",
+                    })
+                  }
                   aria-label={`Remove ${hm.name}`}
                 >
                   <X className="h-3 w-3" />
@@ -182,7 +222,9 @@ export default function JobDetailPage() {
         <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
           <h3 className="text-sm font-semibold">Assign Hiring Manager</h3>
           {hiringManagers.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No hiring manager accounts found.</p>
+            <p className="text-xs text-muted-foreground">
+              No hiring manager accounts found.
+            </p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {hiringManagers
@@ -194,7 +236,10 @@ export default function JobDetailPage() {
                     size="sm"
                     disabled={assignHMMutation.isPending}
                     onClick={() => {
-                      assignHMMutation.mutate({ userId: hm._id, action: "add" });
+                      assignHMMutation.mutate({
+                        userId: hm._id,
+                        action: "add",
+                      });
                       setShowAssignPanel(false);
                     }}
                   >
@@ -236,16 +281,78 @@ export default function JobDetailPage() {
           </div>
         </div>
       )}
+      
+      {/* AI Bias Report */}
+      {canEditJob && (
+        <>
+          <Separator />
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold">Bias Report</h2>
+                {job.biasFlags && (
+                  <Badge variant="secondary" className="text-xs">
+                    Score: {job.biasFlags.biasScore}/100
+                  </Badge>
+                )}
+              </div>
+              {/* Show "Analyze" if never run, "Re-analyze" if already run */}
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={analyzesBiasMutation.isPending}
+                onClick={() => analyzesBiasMutation.mutate()}
+              >
+                {analyzesBiasMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                )}
+                {job.biasFlags ? "Re-analyze Bias" : "Analyze Bias"}
+              </Button>
+            </div>
+
+            {/* If biasFlags is null, show the call-to-action description */}
+            {!job.biasFlags && !analyzesBiasMutation.isPending && (
+              <p className="text-sm text-muted-foreground">
+                Run an AI scan to detect potentially biased language in this job
+                description — gendered terms, ageist phrases, and culturally
+                coded words that may deter qualified candidates from applying.
+              </p>
+            )}
+
+            {/* Loading state */}
+            {analyzesBiasMutation.isPending && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Scanning job description for biased language…
+              </div>
+            )}
+
+            {/* The report — rendered only when biasFlags exists on the job */}
+            {job.biasFlags && <BiasReport biasFlags={job.biasFlags} />}
+          </div>
+        </>
+      )}
 
       {/* Pipeline Funnel */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Pipeline Funnel</h2>
         {analytics?.decisions && (
           <div className="flex flex-wrap gap-2 mb-3">
-            <Badge variant="secondary">Shortlisted: {analytics.decisions.shortlisted}</Badge>
-            <Badge variant="secondary">Offered: {analytics.decisions.offered}</Badge>
-            <Badge variant="destructive">Rejected: {analytics.decisions.rejected}</Badge>
-            <Badge variant="outline">On Hold: {analytics.decisions.onHold}</Badge>
+            <Badge variant="secondary">
+              Shortlisted: {analytics.decisions.shortlisted}
+            </Badge>
+            <Badge variant="secondary">
+              Offered: {analytics.decisions.offered}
+            </Badge>
+            <Badge variant="destructive">
+              Rejected: {analytics.decisions.rejected}
+            </Badge>
+            <Badge variant="outline">
+              On Hold: {analytics.decisions.onHold}
+            </Badge>
           </div>
         )}
         <FunnelChart funnel={analytics?.funnel ?? []} />
@@ -262,7 +369,9 @@ export default function JobDetailPage() {
             <ResumeUpload
               jobId={jobId}
               onUploaded={() =>
-                queryClient.invalidateQueries({ queryKey: RESUME_KEYS.byJob(jobId) })
+                queryClient.invalidateQueries({
+                  queryKey: RESUME_KEYS.byJob(jobId),
+                })
               }
             />
           </div>
@@ -277,21 +386,23 @@ export default function JobDetailPage() {
           <h2 className="text-lg font-semibold">
             Uploaded Resumes ({resumes.length})
           </h2>
-          {canRunScreening && resumes.filter((r) => r.status === "parsed").length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={bulkMutation.isPending}
-              onClick={() => bulkMutation.mutate({ jobId })}
-            >
-              {bulkMutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Zap className="mr-2 h-4 w-4" />
-              )}
-              Screen All ({resumes.filter((r) => r.status === "parsed").length})
-            </Button>
-          )}
+          {canRunScreening &&
+            resumes.filter((r) => r.status === "parsed").length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={bulkMutation.isPending}
+                onClick={() => bulkMutation.mutate({ jobId })}
+              >
+                {bulkMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Zap className="mr-2 h-4 w-4" />
+                )}
+                Screen All (
+                {resumes.filter((r) => r.status === "parsed").length})
+              </Button>
+            )}
         </div>
         {resumes.length === 0 ? (
           <p className="text-sm text-muted-foreground">

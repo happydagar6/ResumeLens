@@ -131,3 +131,24 @@ export function useAssignHiringManager(jobId) {
     },
   });
 }
+
+
+// ── POST /api/jobs/:id/analyze-bias ───────────────────────────────────────────
+// Triggers AI bias detection on the job's description + requirements.
+// On success: invalidates the job detail cache so biasFlags re-renders immediately.
+
+export function useAnalyzeBias(jobId) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => api.post(`/jobs/${jobId}/analyze-bias`),
+    onSuccess: () => {
+      // Refresh the job detail - biasFlags is now populated in the DB.
+      queryClient.invalidateQueries({ queryKey: JOB_KEYS.detail(jobId) });
+      toast.success("Bias analysis complete!");
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to analyze bias");
+    },
+  });
+}

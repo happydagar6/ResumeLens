@@ -1,7 +1,7 @@
 // src/routes/jobsRoutes.js
 
 const express = require("express");
-const { createJob, getJobs, getJobById, updateJob, deleteJob, assignJob } = require("../controllers/jobsController");
+const { createJob, getJobs, getJobById, updateJob, deleteJob, assignJob, analyzeBias } = require("../controllers/jobsController");
 const { getJobAnalytics } = require("../controllers/statsController");
 const authMiddleware = require("../middleware/authMiddleware");
 const authorize = require("../middleware/authorize");
@@ -22,6 +22,9 @@ router.delete("/:id", authorize("recruiter", "admin"), deleteJob);
 
 // ASSIGN: recruiters and admins can assign/remove hiring managers
 router.put("/:id/assign", authorize("recruiter", "admin"), assignJob);
+
+// BIAS: recruiter/admin can trigger bias analysis on a job's description
+router.post("/:id/analyze-bias", authorize("recruiter", "admin"), analyzeBias);
 
 // ANALYTICS: pipeline funnel for a specific job
 router.get("/:id/analytics", getJobAnalytics);

@@ -36,6 +36,24 @@ const scoringSchema = z.object({
     rationale: z.string().optional(),
 });
 
+
+// Bias detection schema for analyzing job descriptions and screening results
+const biasDetectionSchema = z.object({
+    biasScore: z.number().min(0).max(100),
+    flagCount: z.number().int().min(0),
+    flags: z.array(
+        z.object({
+            term: z.string(),
+            context: z.string().optional().default(""),
+            category: z.enum(["gender", "age", "culture", "socioeconomic", "ability"]),
+            suggestion: z.string(),
+            severity: z.enum(["low", "medium", "high"]),
+        })
+    ).default([]),
+    summary: z.string().default(""),
+});
+
+
 const questionsSchema = z.object({
     questions: z.array(z.object({
         question: z.string(),
@@ -234,4 +252,5 @@ module.exports = {
     questionsSchema,
     validateAIOutput,
     crossValidateScoringResult,
+    biasDetectionSchema,
 };

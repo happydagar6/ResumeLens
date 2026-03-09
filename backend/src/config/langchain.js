@@ -57,4 +57,15 @@ const emailModel = new ChatOpenAI({
     openAIApiKey: process.env.OPENAI_API_KEY,
 });
 
-module.exports = { extractorModel, scorerModel, questionModel, analyzerModel, emailModel };
+// ── Bias Detection ─────────────────────────────────────────────────────────
+// temperature: 0 — detection must be deterministic. Same JD = same flags every time.
+const biasModel = new ChatOpenAI({
+    model: "gpt-4.1-mini-2025-04-14",
+    temperature: 0,
+    openAIApiKey: process.env.OPENAI_API_KEY,
+    modelKwargs: {
+        response_format: { type: "json_object" },
+    },
+});
+
+module.exports = { extractorModel, scorerModel, questionModel, analyzerModel, emailModel, biasModel };

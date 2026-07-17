@@ -10,7 +10,7 @@ const entityExtractionSchema = z.object({
         role: z.string().optional(),
         company: z.string().optional(),
         duration: z.string().optional(),
-        description: z.string().optional(),
+        description: z.union([z.string(), z.array(z.string())]).optional(),
     })).default([]),
     education: z.array(z.object({
         degree: z.string().optional(),
@@ -22,7 +22,7 @@ const entityExtractionSchema = z.object({
         name: z.string().optional(),
         email: z.string().optional(),
         phone: z.string().optional(),
-        location: z.string().optional(),
+        location: z.string().nullable().optional(),
     }).optional(),
 });
 

@@ -1,2 +1,7 @@
+allowBuilds:
+  bcrypt: true
+  msgpackr-extract: true
+minimumReleaseAgeExclude:
+  - bullmq@5.80.0
 onlyBuiltDependencies:
   - bcrypt

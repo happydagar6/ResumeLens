@@ -1,40 +1,89 @@
 // src/services/backgroundQueue.js
-// In-process background queue using p-queue + MongoDB job tracking.
-// Replaces BullMQ + Redis with a simpler, zero-dependency approach.
-
-const PQueue = require("p-queue").default;
+const { Queue, Worker } = require("bullmq");
+const { createRedisConnection } = require("../config/redis");
 const ProcessingJob = require("../models/processingJobModel");
 const { runScreeningPipeline } = require("../agents/screeningGraph");
 
-// ── Concurrency-limited queue ─────────────────────────────────────────────────
-// concurrency: 3 → max 3 AI screening calls in parallel at any time.
-// This prevents overloading the OpenAI API rate limits.
-const screeningQueue = new PQueue({ concurrency: 3 });
+const QUEUE_NAME = "resume-screening";
 
-// Log queue events for debugging
-screeningQueue.on("active", () => {
-    console.log(`[Queue] Active: ${screeningQueue.pending} running, ${screeningQueue.size} waiting`);
+// 1. Create the Queue (adds jobs to Redis)
+const screeningQueue = new Queue(QUEUE_NAME, {
+    connection: createRedisConnection(),
+    skipConfigCheck: true, // Suppress Upstash eviction policy warning
+    defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: "exponential", delay: 2000 },
+        removeOnComplete: { count: 100, age: 24 * 60 * 60 },
+        removeOnFail: { count: 200 },
+    },
 });
 
-// ── Main function: enqueue a screening job ────────────────────────────────────
-// Called by pipelineController.screenSingle() instead of directly awaiting the pipeline.
-//
-// Returns the ProcessingJob document immediately (the caller sends HTTP 202).
-// The actual AI work happens in the background via p-queue.
+// 2. Create the Worker (picks up jobs from Redis and processes them)
+const screeningWorker = new Worker(
+    QUEUE_NAME,
+    async (job) => {
+        const { resumeId, jobId, userId, processingJobId } = job.data;
+        console.log(`[Worker] Processing job ${job.id} — resumeId: ${resumeId}`);
 
+        if (processingJobId) {
+            await ProcessingJob.findByIdAndUpdate(processingJobId, {
+                status: "processing",
+                startedAt: new Date(),
+            });
+        }
+
+        const result = await runScreeningPipeline(resumeId);
+
+        if (!result.success) {
+            throw new Error(result.error || "Pipeline returned failure");
+        }
+
+        if (processingJobId) {
+            await ProcessingJob.findByIdAndUpdate(processingJobId, {
+                status: "completed",
+                completedAt: new Date(),
+                result: {
+                    screeningId: result.screeningId,
+                    score: result.score,
+                    recommendation: result.recommendation,
+                    warnings: result.warnings || [],
+                },
+            });
+        }
+
+        console.log(`[Worker] Job ${job.id} completed — Score: ${result.score}`);
+        return result;
+    },
+    {
+        connection: createRedisConnection(),
+        skipConfigCheck: true, // Suppress Upstash eviction policy warning
+        concurrency: 3, // Max 3 parallel AI calls
+    }
+);
+
+// 3. Worker Error Handling
+screeningWorker.on("failed", async (job, err) => {
+    console.error(`[Worker] Job ${job?.id} failed: ${err.message}`);
+    if (job && job.attemptsMade >= job.opts.attempts) {
+        if (job.data.processingJobId) {
+            await ProcessingJob.findByIdAndUpdate(job.data.processingJobId, {
+                status: "failed",
+                completedAt: new Date(),
+                error: err.message || "Unknown error after all retries",
+            });
+        }
+    }
+});
+
+// 4. Controller Methods
 async function enqueueScreening({ resumeId, jobId, userId }) {
-    // 1. Deduplication: check if this resume already has an active job
     const existingJob = await ProcessingJob.findOne({
         resumeId,
         status: { $in: ["queued", "processing"] },
     });
 
-    if (existingJob) {
-        console.log(`[Queue] Resume ${resumeId} already has an active job: ${existingJob._id}`);
-        return existingJob; // Return the existing job — frontend can poll its status
-    }
+    if (existingJob) return existingJob;
 
-    // 2. Create a new ProcessingJob document in MongoDB
     const processingJob = await ProcessingJob.create({
         type: "screening",
         resumeId,
@@ -43,61 +92,19 @@ async function enqueueScreening({ resumeId, jobId, userId }) {
         status: "queued",
     });
 
-    console.log(`[Queue] Enqueued screening job ${processingJob._id} for resume ${resumeId}`);
+    await screeningQueue.add(
+        "screen-resume",
+        {
+            resumeId: resumeId.toString(),
+            jobId: jobId.toString(),
+            userId: userId.toString(),
+            processingJobId: processingJob._id.toString(),
+        },
+        { jobId: `resume-${resumeId}` }
+    );
 
-    // 3. Add to p-queue — this returns immediately (does NOT await the pipeline)
-    //    The arrow function runs later when a concurrency slot opens up.
-    screeningQueue.add(async () => {
-        try {
-            // Mark as processing
-            await ProcessingJob.findByIdAndUpdate(processingJob._id, {
-                status: "processing",
-                startedAt: new Date(),
-            });
-
-            // Run the actual AI pipeline (this takes 10-30 seconds)
-            const result = await runScreeningPipeline(resumeId);
-
-            if (result.success) {
-                // Mark as completed with result data
-                await ProcessingJob.findByIdAndUpdate(processingJob._id, {
-                    status: "completed",
-                    completedAt: new Date(),
-                    result: {
-                        screeningId: result.screeningId,
-                        score: result.score,
-                        recommendation: result.recommendation,
-                        warnings: result.warnings || [],
-                    },
-                });
-                console.log(`[Queue] Job ${processingJob._id} completed — Score: ${result.score}`);
-            } else {
-                // Pipeline returned success: false (e.g., missing parsedText)
-                await ProcessingJob.findByIdAndUpdate(processingJob._id, {
-                    status: "failed",
-                    completedAt: new Date(),
-                    error: result.error || "Pipeline returned failure",
-                });
-                console.error(`[Queue] Job ${processingJob._id} failed: ${result.error}`);
-            }
-        } catch (err) {
-            // Unexpected crash in the pipeline
-            await ProcessingJob.findByIdAndUpdate(processingJob._id, {
-                status: "failed",
-                completedAt: new Date(),
-                error: err.message || "Unknown error",
-            });
-            console.error(`[Queue] Job ${processingJob._id} crashed:`, err.message);
-        }
-    });
-
-    // 4. Return the job doc immediately — don't wait for the pipeline
     return processingJob;
 }
-
-// ── Batch enqueue ─────────────────────────────────────────────────────────────
-// Enqueues multiple resumes at once. Each gets its own ProcessingJob document.
-// Returns an array of ProcessingJob documents.
 
 async function enqueueBatchScreening({ resumeIds, jobId, userId }) {
     const jobs = [];
@@ -108,12 +115,19 @@ async function enqueueBatchScreening({ resumeIds, jobId, userId }) {
     return jobs;
 }
 
-// ── Queue stats (for admin dashboard or debugging) ────────────────────────────
-function getQueueStats() {
-    return {
-        active: screeningQueue.pending,   // currently running
-        waiting: screeningQueue.size,     // waiting for a slot
-    };
+async function getQueueStats() {
+    const [waiting, active, completed, failed] = await Promise.all([
+        screeningQueue.getWaitingCount(),
+        screeningQueue.getActiveCount(),
+        screeningQueue.getCompletedCount(),
+        screeningQueue.getFailedCount(),
+    ]);
+    return { waiting, active, completed, failed };
 }
 
-module.exports = { enqueueScreening, enqueueBatchScreening, getQueueStats };
+async function shutdownQueue() {
+    await screeningWorker.close();
+    await screeningQueue.close();
+}
+
+module.exports = { enqueueScreening, enqueueBatchScreening, getQueueStats, shutdownQueue };

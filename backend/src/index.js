@@ -55,6 +55,17 @@ app.get("/api/health", (req, res) => {
     res.json({ success: true, message: "RecruitAI API is running" });
 });
 
+// Queue health — shows current BullMQ stats
+app.get("/api/health/queue", async (req, res) => {
+    try {
+        const { getQueueStats } = require("./services/backgroundQueue");
+        const stats = await getQueueStats();
+        res.json({ success: true, queue: stats });
+    } catch (err) {
+        res.json({ success: false, error: err.message });
+    }
+});
+
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobsRoutes);
@@ -77,3 +88,16 @@ connectDB().then(() => {
     console.error("DB connection failed", err);
     process.exit(1);
 });
+
+// ── Graceful Shutdown ──────────────────────────────────────────────────────────
+const { shutdownQueue } = require("./services/backgroundQueue");
+
+async function gracefulShutdown(signal) {
+    console.log(`\n[Server] ${signal} received — shutting down background queue...`);
+    await shutdownQueue();
+    console.log("[Server] Shutdown complete. Goodbye!");
+    process.exit(0);
+}
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT",  () => gracefulShutdown("SIGINT"));

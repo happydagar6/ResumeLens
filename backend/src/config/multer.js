@@ -1,21 +1,9 @@
 // src/config/multer.js
-// Centralized Multer configuration for file uploads
-
 const multer = require("multer");
-const path = require("path");
 const { CustomError } = require("../utils/errors");
 
-// Sotrage: save to /src/uploads with unique filenames
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, path.join(__dirname, "../uploads"));
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-        cb(null, `${uniqueSuffix}-${sanitizedName}`);
-    },
-});
+// Use Memory Storage so files are kept in RAM (req.file.buffer) instead of the hard drive
+const storage = multer.memoryStorage();
 
 // Only allow PDF files
 const fileFilter = (req, file, cb) => {
@@ -27,7 +15,6 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-// Export configured upload middleware
 const upload = multer({
     storage,
     fileFilter,

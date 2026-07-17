@@ -6,6 +6,9 @@ const { parsePDF } = require("../services/pdfParserService");
 const { extractEntities } = require("../services/entityExtractorAgent"); // NEW
 const { response } = require("../utils/response");
 const { CustomError } = require("../utils/errors");
+const cloudinary = require("../config/cloudinary");
+const streamifier = require("streamifier");
+
 
 async function uploadResume(req, res, next) {
     try {
@@ -25,34 +28,51 @@ async function uploadResume(req, res, next) {
             throw new CustomError("Access denied — you do not own this job", 403);
         }
 
-        // Step 1: Parse PDF text
+        // Step 1: Parse PDF text DIRECTLY from memory buffer
         let parsedText = "";
         try {
-            parsedText = await parsePDF(req.file.path);
+            parsedText = await parsePDF(req.file.buffer);
         } catch (parseErr) {
             console.error("PDF parse error:", parseErr.message);
         }
 
-        // Step 2: Extract entities from parsed text (NEW)
+        // Step 2: Extract entities from parsed text
         let extractedEntities = null;
         if (parsedText) {
             try {
                 extractedEntities = await extractEntities(parsedText);
             } catch (extractErr) {
                 // Don't fail the upload if entity extraction fails
-                // The resume is still saved, just without entities
                 console.error("Entity extraction error:", extractErr.message);
             }
         }
 
-        // Step 3: Save resume to database
+        // Step 3: Upload the PDF buffer to Cloudinary
+        const uploadToCloudinary = new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+                {
+                    folder: "recruitai_resumes",
+                    resource_type: "raw", // Required for PDFs
+                    format: "pdf",
+                },
+                (error, result) => {
+                    if (error) reject(error);
+                    else resolve(result);
+                }
+            );
+            streamifier.createReadStream(req.file.buffer).pipe(stream);
+        });
+
+        const cloudData = await uploadToCloudinary;
+
+        // Step 4: Save resume to database with the Cloudinary URL
         const resume = new Resume({
             candidateName,
             candidateEmail: candidateEmail || "",
             fileName: req.file.originalname,
-            filePath: req.file.path,
+            filePath: cloudData.secure_url, // Save the permanent cloud URL instead of local path!
             parsedText,
-            extractedEntities, // NEW: save extracted entities
+            extractedEntities, 
             jobId,
             uploadedBy: req.user?.id || null,
             status: parsedText ? "parsed" : "uploaded",

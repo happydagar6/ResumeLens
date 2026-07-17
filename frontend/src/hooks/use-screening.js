@@ -108,20 +108,18 @@ export function useGenerateEmail() {
   });
 }
 
-// ── POST /api/screening/bulk ──────────────────────────────────────────────────
-// Screens all parsed resumes for a job in one request.
-// On success: invalidates resume list (status changes) + screening list (new docs).
+// ── POST /api/pipeline/batch-screen ───────────────────────────────────────────
+// Queues all parsed resumes for a job into BullMQ.
+// On success: invalidates resume list (status changes to screening).
 
 export function useBulkScreening() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ jobId }) => api.post("/screening/bulk", { jobId }),
+    mutationFn: ({ jobId }) => api.post("/pipeline/batch-screen", { jobId }),
     onSuccess: (data, variables) => {
-      const { succeeded = 0, skipped = 0, failed = 0 } = data?.data ?? {};
       queryClient.invalidateQueries({ queryKey: RESUME_KEYS.byJob(variables.jobId) });
-      queryClient.invalidateQueries({ queryKey: SCREENING_KEYS.byJob(variables.jobId) });
-      toast.success(`Bulk screening done: ${succeeded} screened, ${skipped} skipped${failed ? `, ${failed} failed` : ""}`);
+      toast.success(data?.message || "Bulk screening queued successfully");
     },
     onError: (err) => {
       toast.error(err.message || "Bulk screening failed");

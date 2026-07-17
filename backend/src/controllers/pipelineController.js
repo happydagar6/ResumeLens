@@ -5,7 +5,6 @@
 
 const Resume = require("../models/resumeModel");
 const Job = require("../models/jobModel");
-const { runScreeningPipeline } = require("../agents/screeningGraph");
 const { response } = require("../utils/response");
 const { CustomError } = require("../utils/errors");
 
@@ -97,38 +96,22 @@ async function rescreenSingle(req, res, next) {
             screeningError: null,
         });
 
-        // Now run the pipeline (or enqueue if you've implemented Feature 1)
-        // --- Option A: If you have NOT implemented background queue yet: ---
-        console.log(`[Pipeline] Re-screening resume ${resumeId}...`);
-        const result = await runScreeningPipeline(resumeId);
+        // Enqueue via BullMQ (returns 202 immediately)
+        const processingJob = await enqueueScreening({
+            resumeId,
+            jobId: resume.jobId,
+            userId: req.user.id,
+        });
 
-        if (!result.success) {
-            return res.status(422).json({
-                success: false,
-                message: "Re-screening failed",
-                error: result.error,
-                warnings: result.warnings,
-            });
-        }
-
-        response(res, 200, {
-            resumeId: result.resumeId,
-            screeningId: result.screeningId,
-            score: result.score,
-            recommendation: result.recommendation,
-            warnings: result.warnings,
-        }, "Resume re-screened successfully");
-
-        // --- Option B: If you HAVE implemented background queue (Feature 1): ---
-        // const { enqueueScreening } = require("../services/backgroundQueue");
-        // const processingJob = await enqueueScreening({
-        //     resumeId, jobId: resume.jobId, userId: req.user.id
-        // });
-        // res.status(202).json({
-        //     success: true,
-        //     message: "Re-screening queued",
-        //     data: { processingJobId: processingJob._id, resumeId, status: "queued" },
-        // });
+        res.status(202).json({
+            success: true,
+            message: "Re-screening queued — processing will begin shortly",
+            data: {
+                processingJobId: processingJob._id,
+                resumeId,
+                status: processingJob.status,
+            },
+        });
     } catch (error) {
         next(error);
     }

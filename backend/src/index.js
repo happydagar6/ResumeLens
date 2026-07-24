@@ -19,6 +19,9 @@ const statsRoutes = require('./routes/statsRoutes');
 const usersRoutes = require('./routes/usersRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const { addClient, removeClient } = require('./services/sseService');
+const authMiddleware = require('./middleware/authMiddleware');
+
 
 const app = express();
 
@@ -65,6 +68,35 @@ app.get("/api/health/queue", async (req, res) => {
         res.json({ success: false, error: err.message });
     }
 });
+
+
+// ── SSE: Real-time push events ────────────────────────────────────────────────
+// GET /api/events
+// The browser connects here once and keeps the connection open.
+// The server pushes events over this connection whenever something happens
+// (e.g. BullMQ finishes screening a resume).
+app.get("/api/events", authMiddleware, (req, res) => {
+    const userId = req.user.id;
+
+    // These headers tell the browser: "This is a stream, keep the connection open"
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no"); // Important for Nginx reverse proxies
+    res.flushHeaders(); // Send headers immediately, don't wait for a body
+
+    // Register this browser tab as a connected client
+    addClient(userId, res);
+
+    // Send an initial "connected" event so the browser knows it's working
+    res.write(`event: connected\ndata: ${JSON.stringify({ userId, message: "SSE connection established" })}\n\n`);
+
+    // When the browser disconnects (tab closed, navigation, etc.) — clean up
+    req.on("close", () => {
+        removeClient(userId, res);
+    });
+});
+
 
 // Routes
 app.use("/api/auth", authRoutes);

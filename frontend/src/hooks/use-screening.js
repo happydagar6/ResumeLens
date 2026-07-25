@@ -171,3 +171,20 @@ export function useRescreen() {
         },
     });
 }
+
+// ── DELETE /api/screening/:id ─────────────────────────────────────────────────
+// Deletes a screening directly (useful for orphaned screenings)
+export function useDeleteScreening() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (screeningId) => api.delete(`/screening/${screeningId}`),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["screenings"] });
+            toast.success("Screening deleted successfully");
+        },
+        onError: (err) => {
+            toast.error(err.message || "Failed to delete screening");
+        },
+    });
+}

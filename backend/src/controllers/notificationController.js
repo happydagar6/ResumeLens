@@ -56,4 +56,15 @@ async function markOneRead(req, res, next) {
   }
 }
 
-module.exports = { getNotifications, markAllRead, markOneRead };
+// DELETE /api/notifications
+// Deletes all notifications belonging to the logged-in user.
+async function deleteAllNotifications(req, res, next) {
+  try {
+    await Notification.deleteMany({ userId: req.user.id });
+    response(res, 200, null, "All notifications cleared");
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getNotifications, markAllRead, markOneRead, deleteAllNotifications };

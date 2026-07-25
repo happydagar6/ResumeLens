@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 
 // ── Query Keys ────────────────────────────────────────────────────────────────
@@ -74,4 +74,15 @@ export function useActivityFeed() {
     activities: data?.data?.activities ?? [],
     isLoading,
   };
+}
+
+// DELETE /api/stats/activity — clears the activity feed for the user
+export function useClearActivity() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.delete("/stats/activity"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["stats", "activity"] });
+    },
+  });
 }

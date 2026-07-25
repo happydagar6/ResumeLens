@@ -7,12 +7,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useNotifications, useMarkAllRead, useMarkOneRead } from "@/hooks/use-notifications";
+import { useNotifications, useMarkAllRead, useMarkOneRead, useClearNotifications } from "@/hooks/use-notifications";
 
 export default function NotificationBell() {
   const { notifications, unreadCount } = useNotifications();
   const markAll = useMarkAllRead();
   const markOne = useMarkOneRead();
+  const clearAll = useClearNotifications();
 
   return (
     <Popover>
@@ -30,17 +31,30 @@ export default function NotificationBell() {
       <PopoverContent align="end" className="w-80 p-0">
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <span className="text-sm font-semibold">Notifications</span>
-          {unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs h-7"
-              onClick={() => markAll.mutate()}
-              disabled={markAll.isPending}
-            >
-              Mark all read
-            </Button>
-          )}
+          <div className="flex items-center gap-1">
+            {unreadCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-7 px-2"
+                onClick={() => markAll.mutate()}
+                disabled={markAll.isPending}
+              >
+                Mark all read
+              </Button>
+            )}
+            {notifications.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-7 px-2 text-destructive hover:text-destructive/90"
+                onClick={() => clearAll.mutate()}
+                disabled={clearAll.isPending}
+              >
+                Clear all
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="max-h-80 overflow-y-auto divide-y">

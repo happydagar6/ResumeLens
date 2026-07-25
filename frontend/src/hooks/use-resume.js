@@ -52,7 +52,9 @@ export function useDeleteResume(jobId) {
   return useMutation({
     mutationFn: (resumeId) => api.delete(`/resumes/${resumeId}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: RESUME_KEYS.byJob(jobId) });
+      // Invalidate both resumes and screenings globally so whichever page they land on gets fresh data
+      queryClient.invalidateQueries({ queryKey: ["resumes"] });
+      queryClient.invalidateQueries({ queryKey: ["screenings"] });
       toast.success("Resume deleted");
     },
     onError: (err) => {

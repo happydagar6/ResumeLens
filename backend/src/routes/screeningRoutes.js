@@ -1,7 +1,7 @@
 // src/routes/screeningRoutes.js
 
 const express = require("express");
-const { screenResume, getScreeningResults, getScreeningById, makeDecision, generateEmail, bulkScreen } = require("../controllers/screeningController");
+const { screenResume, getScreeningResults, getScreeningById, makeDecision, generateEmail, bulkScreen, deleteScreening } = require("../controllers/screeningController");
 const authMiddleware = require("../middleware/authMiddleware");
 const authorize = require("../middleware/authorize");
 
@@ -26,5 +26,7 @@ router.put("/:id/decision", authorize("hiring_manager", "recruiter", "admin"), m
 // EMAIL: generate email draft for a screening result
 router.post("/:id/generate-email", authorize("hiring_manager", "recruiter", "admin"), generateEmail);
 
+// DELETE: manual cleanup of screening results
+router.delete("/:id", authorize("recruiter", "admin"), deleteScreening);
 
 module.exports = router;

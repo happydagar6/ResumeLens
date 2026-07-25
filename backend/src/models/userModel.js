@@ -41,6 +41,10 @@ const userSchema = new mongoose.Schema(
         isDeactivated: {
             type: Boolean,
             default: false,
+        },
+        activityClearedAt: {
+            type: Date,
+            default: null,
         }
     },
     { timestamps: true }

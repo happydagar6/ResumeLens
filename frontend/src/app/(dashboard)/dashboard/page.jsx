@@ -1,6 +1,6 @@
 "use client";
 
-import { useOverviewStats, useActivityFeed } from "@/hooks/use-stats";
+import { useOverviewStats, useActivityFeed, useClearActivity } from "@/hooks/use-stats";
 import { useAuth } from "@/hooks/use-auth";
 
 import { usePermissions } from "@/hooks/use-permissions";
@@ -16,6 +16,7 @@ export default function DashboardHome() {
   const { canCreateJob } = usePermissions();
   const { stats, isLoading, isError } = useOverviewStats();
   const { activities, isLoading: activitiesLoading } = useActivityFeed();
+  const clearActivity = useClearActivity();
 
   // Build the 4 stat cards from the real API response shape:
   // stats.jobs    → { total, open, closed, draft }
@@ -106,9 +107,20 @@ export default function DashboardHome() {
       {/* Activity Feed */}
       {!activitiesLoading && activities.length > 0 && (
         <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-primary" />
-            <h2 className="text-lg font-semibold">Recent Activity</h2>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-primary" />
+              <h2 className="text-lg font-semibold">Recent Activity</h2>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-xs h-8 text-muted-foreground hover:text-foreground"
+              onClick={() => clearActivity.mutate()}
+              disabled={clearActivity.isPending}
+            >
+              Clear
+            </Button>
           </div>
           <div className="rounded-xl border border-border/60 overflow-hidden divide-y divide-border/50 bg-card">
             {activities.map((item, i) => {

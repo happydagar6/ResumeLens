@@ -479,9 +479,13 @@ async function getActivityFeed(req, res, next) {
       return response(res, 200, { activities: [] });
     }
 
-    // Fetch recent screenings + recent decisions in parallel
+    const User = require("../models/userModel");
+    const user = await User.findById(req.user.id).select("activityClearedAt");
+    const activityClearedAt = user?.activityClearedAt || new Date(0);
+
+    // Fetch recent screenings + recent decisions in parallel (filtered by activityClearedAt)
     const [recentScreenings, recentDecisions] = await Promise.all([
-      Screening.find({ jobId: { $in: jobIds } })
+      Screening.find({ jobId: { $in: jobIds }, createdAt: { $gt: activityClearedAt } })
         .sort({ createdAt: -1 })
         .limit(20)
         .populate("resumeId", "candidateName")
@@ -490,7 +494,7 @@ async function getActivityFeed(req, res, next) {
       Screening.find({
         jobId: { $in: jobIds },
         hiringManagerDecision: { $ne: null },
-        decidedAt: { $ne: null },
+        decidedAt: { $gt: activityClearedAt },
       })
         .sort({ decidedAt: -1 })
         .limit(20)
@@ -536,4 +540,18 @@ async function getActivityFeed(req, res, next) {
   }
 }
 
-module.exports = { getOverviewStats, getJobStats, getJobAnalytics, getActivityFeed };
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE /api/stats/activity
+// Sets activityClearedAt on the user so old activity is hidden
+// ─────────────────────────────────────────────────────────────────────────────
+async function clearActivityFeed(req, res, next) {
+  try {
+    const User = require("../models/userModel");
+    await User.findByIdAndUpdate(req.user.id, { activityClearedAt: Date.now() });
+    response(res, 200, null, "Activity feed cleared");
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { getOverviewStats, getJobStats, getJobAnalytics, getActivityFeed, clearActivityFeed };

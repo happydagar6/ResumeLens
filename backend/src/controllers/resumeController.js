@@ -2,11 +2,13 @@
 
 const Resume = require("../models/resumeModel");
 const Job = require("../models/jobModel");
+const Screening = require("../models/screeningModel");
+const ProcessingJob = require("../models/processingJobModel");
 const { parsePDF } = require("../services/pdfParserService");
 const { extractEntities } = require("../services/entityExtractorAgent"); // NEW
 const { response } = require("../utils/response");
 const { CustomError } = require("../utils/errors");
-const cloudinary = require("../config/cloudinary");
+const { cloudinary, deleteFromCloudinary } = require("../config/cloudinary");
 const streamifier = require("streamifier");
 
 
@@ -137,8 +139,21 @@ async function deleteResume(req, res, next) {
             throw new CustomError("Access denied", 403);
         }
 
+        // Cascade delete: Remove the physical file from Cloudinary
+        if (resume.filePath) {
+            await deleteFromCloudinary(resume.filePath);
+        }
+
+        // Cascade delete: Remove associated AI screening results
+        await Screening.deleteOne({ resumeId: resume._id });
+
+        // Cascade delete: Remove any associated background processing jobs
+        await ProcessingJob.deleteMany({ resumeId: resume._id });
+
+        // Finally, delete the resume document itself
         await resume.deleteOne();
-        response(res, 200, null, "Resume deleted successfully");
+        
+        response(res, 200, null, "Resume and associated data deleted successfully");
     } catch (err) {
         next(err);
     }

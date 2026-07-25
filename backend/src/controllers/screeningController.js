@@ -380,5 +380,27 @@ async function bulkScreen(req, res, next) {
     }
 }
 
-module.exports = { screenResume, getScreeningResults, getScreeningById, makeDecision, generateEmail, bulkScreen };
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE /api/screening/:id
+// Deletes a screening result manually (useful for orphaned screenings).
+// ─────────────────────────────────────────────────────────────────────────────
+async function deleteScreening(req, res, next) {
+    try {
+        const screening = await Screening.findById(req.params.id);
+        if (!screening) throw new CustomError("Screening not found", 404);
+
+        // Verify the parent job is accessible by this user
+        const job = await Job.findById(screening.jobId);
+        if (job && req.user.role !== "admin" && job.createdBy?.toString() !== req.user.id) {
+            throw new CustomError("Access denied", 403);
+        }
+
+        await screening.deleteOne();
+        response(res, 200, null, "Screening deleted successfully");
+    } catch (err) {
+        next(err);
+    }
+}
+
+module.exports = { screenResume, getScreeningResults, getScreeningById, makeDecision, generateEmail, bulkScreen, deleteScreening };
 

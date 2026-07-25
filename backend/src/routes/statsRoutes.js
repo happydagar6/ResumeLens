@@ -1,7 +1,7 @@
 // src/routes/statsRoutes.js
 
 const express = require("express");
-const { getOverviewStats, getJobStats, getActivityFeed } = require("../controllers/statsController");
+const { getOverviewStats, getJobStats, getActivityFeed, clearActivityFeed } = require("../controllers/statsController");
 const authMiddleware = require("../middleware/authMiddleware");
 
 const router = express.Router();
@@ -20,4 +20,9 @@ router.get("/job/:jobId", getJobStats);
 // GET /api/stats/activity-feed
 // Returns recent activity across the platform for the dashboard feed
 router.get("/activity", getActivityFeed);
+
+// DELETE /api/stats/activity
+// Clears the activity feed for the logged in user
+router.delete("/activity", clearActivityFeed);
+
 module.exports = router;

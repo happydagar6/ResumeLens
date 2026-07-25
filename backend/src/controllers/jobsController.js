@@ -4,6 +4,10 @@ const mongoose = require("mongoose");
 const Job = require("../models/jobModel");
 const { response } = require("../utils/response");
 const { CustomError } = require("../utils/errors");
+const Resume = require("../models/resumeModel");
+const Screening = require("../models/screeningModel");
+const ProcessingJob = require("../models/processingJobModel");
+const { deleteFromCloudinary } = require("../config/cloudinary");
 const { z } = require("zod");
 const { analyzeJD } = require("../services/jdAnalyzerAgent");
 const { detectBias } = require("../services/biasDetectionAgent");
@@ -204,7 +208,25 @@ async function deleteJob(req, res, next) {
 
         const job = await Job.findOneAndDelete(filter);
         if (!job) throw new CustomError("Job not found or access denied", 404);
-        response(res, 200, null, "Job deleted successfully");
+
+        // --- Cascade Deletes ---
+        // 1. Find all resumes for this job to delete their physical files from Cloudinary
+        const resumes = await Resume.find({ jobId: job._id });
+        const cloudinaryPromises = resumes
+            .filter((r) => r.filePath)
+            .map((r) => deleteFromCloudinary(r.filePath));
+        
+        // Wait for Cloudinary deletes to finish (could also be run asynchronously in background)
+        await Promise.allSettled(cloudinaryPromises);
+
+        // 2. Delete all records from MongoDB
+        await Promise.all([
+            Resume.deleteMany({ jobId: job._id }),
+            Screening.deleteMany({ jobId: job._id }),
+            ProcessingJob.deleteMany({ jobId: job._id }),
+        ]);
+
+        response(res, 200, null, "Job and all associated data deleted successfully");
     } catch (err) {
         next(err);
     }

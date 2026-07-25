@@ -44,3 +44,15 @@ export function useMarkOneRead() {
     },
   });
 }
+
+// DELETE /api/notifications
+export function useClearNotifications() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => api.delete("/notifications"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.all });
+    },
+  });
+}

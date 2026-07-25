@@ -44,4 +44,7 @@ const notificationSchema = new mongoose.Schema(
 // Composite index for fast unread-first queries per user
 notificationSchema.index({ userId: 1, read: 1, createdAt: -1 });
 
+// TTL index to automatically delete notifications after 7 days
+notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7 * 24 * 60 * 60 });
+
 module.exports = mongoose.model("Notification", notificationSchema);

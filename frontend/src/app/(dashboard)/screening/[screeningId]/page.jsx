@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
@@ -6,10 +6,14 @@ import {
   useScreening,
   useMakeDecision,
   useGenerateEmail,
+  usePipelineStatus,
   useRescreen,
+  useDeleteScreening,
 } from "@/hooks/use-screening";
 import { useQuestions, useGenerateQuestions } from "@/hooks/use-questions";
+import { useDeleteResume } from "@/hooks/use-resume";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useRouter } from "next/navigation";
 import ScoreGauge from "@/components/dashboard/score-gauge";
 import SkillsDisplay from "@/components/dashboard/skills-display";
 import QuestionsDisplay from "@/components/dashboard/questions-display";
@@ -27,6 +31,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   ArrowLeft,
   Brain,
   Loader2,
@@ -39,6 +54,7 @@ import {
   Check,
   Download,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { generateScreeningPDF } from "@/lib/generate-screening-pdf";
@@ -55,13 +71,16 @@ export default function ScreeningDetailPage() {
   const rescreenMutation = useRescreen();
   const { screeningId } = useParams();
 
-  // â”€â”€ Data fetching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ──────────────────────────────────────────────────────────────────────────────────
   const { screening, isLoading: screeningLoading } = useScreening(screeningId);
   // questions = the interviewQuestion document (null if none generated yet)
   const { questions, isLoading: questionsLoading } = useQuestions(screeningId);
 
-  // â”€â”€ Mutations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ────────────────────────────────────────────────────────────────────────────────
   const generateMutation = useGenerateQuestions();
+  const deleteResumeMutation = useDeleteResume();
+  const deleteScreeningMutation = useDeleteScreening();
+  const router = useRouter();
 
   // Permissions + decision mutation
   const { canMakeDecision, canGenerateQuestions } = usePermissions();
@@ -150,6 +169,46 @@ export default function ScreeningDetailPage() {
           )}
           Re-Screen
         </Button>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" size="sm" disabled={deleteResumeMutation.isPending || deleteScreeningMutation.isPending}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete this candidate. The PDF resume and screening results will be removed.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => {
+                  const resumeIdToDelete = candidate?._id || candidate?.id || (typeof candidate === "string" ? candidate : null);
+                  const redirectPath = job ? `/jobs/${job._id || job?.id || (typeof job === 'string' ? job : '')}/screening` : "/jobs";
+
+                  if (resumeIdToDelete) {
+                    deleteResumeMutation.mutate(resumeIdToDelete, {
+                      onSuccess: () => router.push(redirectPath)
+                    });
+                  } else {
+                    // Fallback for orphaned screening where resume no longer exists
+                    deleteScreeningMutation.mutate(screeningId, {
+                      onSuccess: () => router.push(redirectPath)
+                    });
+                  }
+                }}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {/* Score + Recommendation */}

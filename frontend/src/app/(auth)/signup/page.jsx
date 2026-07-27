@@ -19,6 +19,7 @@ import {
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 // ── Password strength helper ──────────────────────────────────────────────────
 function getPasswordStrength(password) {
@@ -66,12 +67,15 @@ export default function SignupPage() {
   const selectedRole = watch("role");
   const passwordValue = watch("password");
   const strength = getPasswordStrength(passwordValue);
+  
+  const router = useRouter();
 
   const onSubmit = async (data) => {
     try {
       setError("");
       await signup(data);
       toast.success("Account created successfully!");
+      router.push("/dashboard");
     } catch (err) {
       setError(err.message || "Signup failed");
     }

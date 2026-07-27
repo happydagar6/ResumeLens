@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider, useAuth } from "../hooks/use-auth";
+import { useAuth } from "../hooks/use-auth";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useSSE } from "../hooks/use-sse";
 
@@ -27,16 +27,20 @@ export default function Providers({ children }) {
             retry: 3, // Retry failed requests up to 2 times
           },
         },
-      })
+      }),
   );
+
+  const { checkAuth } = useAuth();
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <SSEBridge />
-        {children}
-      </AuthProvider>
+      <SSEBridge />
+      {children}
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
-  )
+  );
 }

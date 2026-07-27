@@ -7,6 +7,7 @@ const { CustomError } = require('../utils/errors');
 const { z } = require('zod');
 const crypto = require('crypto');
 const Organization = require('../models/organizationModel');
+const sendEmail = require('../services/emailService');
 
 const signupSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
@@ -310,4 +311,88 @@ async function refreshAccessToken(req, res, next) {
     }
 }
 
-module.exports = { signup, login, logout, me, updateProfile, updatePassword, getInviteCode, getTeamMembers, refreshAccessToken };
+
+async function forgotPassword(req, res, next) {
+    try {
+        const user = await User.findOne({ email: req.body.email });
+        if (!user) {
+            throw new CustomError("There is no user with that email", 404);
+        }
+
+        // Generate token and save to DB
+        const resetToken = user.getResetPasswordToken();
+        await user.save({ validateBeforeSave: false });
+
+        // Create the frontend URL with the token attached
+        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+
+        const message = `
+            <h2>Password Reset Request</h2>
+            <p>You requested a password reset for your Recruit AI account.</p>
+            <p>Click the link below to reset your password. This link is valid for 15 minutes.</p>
+            <a href="${resetUrl}" style="padding: 10px 20px; background-color: #4f46e5; color: white; text-decoration: none; border-radius: 5px;">Reset Password</a>
+            <p>If you did not request this, please ignore this email.</p>
+        `;
+
+        try {
+            await sendEmail({
+                email: user.email,
+                subject: "Recruit AI - Password Reset Token",
+                html: message,
+            });
+
+            response(res, 200, null, "Email sent successfully");
+        } catch (err) {
+            // If email fails, wipe the token from DB so they can try again
+            user.resetPasswordToken = undefined; // Undefined is used to remove the field from the database
+            user.resetPasswordExpire = undefined; // Undefined is used to remove the field from the database
+            await user.save({ validateBeforeSave: false }); // validateBeforeSave: false prevents the pre('save') hook from running, avoiding the password hashing
+
+            throw new CustomError("Email could not be sent", 500); // Throw error with message
+        }
+    } catch (error) {
+        next(error); // Pass the error to the next middleware
+    }
+}
+
+async function resetPassword(req, res, next) {
+    try {
+        const { token, password } = req.body; // Get token and password from request body
+        
+        if (!token || !password) { // Check if token and password are provided
+            throw new CustomError("Please provide a token and a new password", 400);
+        }
+
+        // Hash the incoming token to compare it to the one saved in the database
+        const resetPasswordToken = crypto
+            .createHash("sha256") // Create a SHA256 hash object
+            .update(token) // Update the hash with the token
+            .digest("hex"); // Convert to hexadecimal
+
+        const user = await User.findOne({
+            resetPasswordToken,
+            resetPasswordExpire: { $gt: Date.now() }, // Ensure token hasn't expired
+        }); // Find user with the given token and check if it's expired
+
+        if (!user) {
+            throw new CustomError("Invalid or expired token", 400); // Throw error if token is invalid or expired
+        }
+
+        // Set the new password and clear the tokens
+        user.password = password;
+        user.resetPasswordToken = undefined; // Undefined is used to remove the field from the database
+        user.resetPasswordExpire = undefined; // Undefined is used to remove the field from the database
+        await user.save(); // This triggers the pre('save') hook to hash the new password
+
+        // Log the user in automatically after reset
+        setAuthCookies(res, user._id, user.role); // Set authentication cookies for the user
+
+        response(res, 200, {
+            user: { id: user._id, name: user.name, email: user.email, role: user.role }
+        }, "Password reset successful"); // Send success response with user data
+    } catch (err) {
+        next(err);
+    }
+}
+
+module.exports = { signup, login, logout, me, updateProfile, updatePassword, getInviteCode, getTeamMembers, refreshAccessToken, forgotPassword, resetPassword };

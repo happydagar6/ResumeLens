@@ -18,6 +18,6 @@ router.put("/password", authMiddleware, updatePassword);
 router.get("/invite-code", authMiddleware, authorize("recruiter", "admin"), getInviteCode);
 router.get("/team", authMiddleware, getTeamMembers);
 router.post("/forgot-password", forgotPassword);
-router.put("/reset-password", resetPassword);
+router.post("/reset-password", resetPassword);
 
 module.exports = router;

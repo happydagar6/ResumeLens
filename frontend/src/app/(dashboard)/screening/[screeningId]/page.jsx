@@ -16,6 +16,7 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { useRouter } from "next/navigation";
 import ScoreGauge from "@/components/dashboard/score-gauge";
 import ScoreBreakdown from "@/components/dashboard/score-breakdown";
+import CandidateChat from "@/components/dashboard/candidate-chat";
 import SkillsDisplay from "@/components/dashboard/skills-display";
 import QuestionsDisplay from "@/components/dashboard/questions-display";
 import { LoadingSpinner } from "@/components/common/loading-state";
@@ -31,6 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -531,6 +533,10 @@ export default function ScreeningDetailPage() {
         {/* questions is the interviewQuestion document; .questions is the array */}
         <QuestionsDisplay questions={questions?.questions || []} />
       </div>
+
+      {/* ── Floating AI Chat Widget ── */}
+      {/* Fixed position, always visible in bottom-right corner while on this page */}
+      <CandidateChat screeningId={screeningId} />
     </div>
   );
 }

@@ -188,3 +188,19 @@ export function useDeleteScreening() {
         },
     });
 }
+
+
+// ── POST /api/screening/:id/chat ──────────────────────────────────────────────
+// Sends a question + full history to the backend and returns the AI's answer.
+// This is a useMutation (not useQuery) because it's triggered on user action.
+// We do NOT use react-query cache here — chat is purely transient in-memory state.
+export function useCandidateChat(screeningId) {
+  return useMutation({
+    mutationFn: ({ userQuestion, history }) =>
+      api.post(`/screening/${screeningId}/chat`, { userQuestion, history }),
+    // No onSuccess cache invalidation needed — we update local state in the component
+    onError: (err) => {
+      toast.error(err.message || "Chat failed. Please try again.");
+    },
+  });
+}

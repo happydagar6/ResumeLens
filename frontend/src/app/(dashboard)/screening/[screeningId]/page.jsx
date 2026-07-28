@@ -15,6 +15,7 @@ import { useDeleteResume } from "@/hooks/use-resume";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useRouter } from "next/navigation";
 import ScoreGauge from "@/components/dashboard/score-gauge";
+import ScoreBreakdown from "@/components/dashboard/score-breakdown";
 import SkillsDisplay from "@/components/dashboard/skills-display";
 import QuestionsDisplay from "@/components/dashboard/questions-display";
 import { LoadingSpinner } from "@/components/common/loading-state";
@@ -219,6 +220,7 @@ export default function ScreeningDetailPage() {
           </CardHeader>
           <CardContent>
             <ScoreGauge score={screening.overallScore} size="lg" />
+            <ScoreBreakdown breakdown={screening.scoreBreakdown} />
           </CardContent>
         </Card>
 

@@ -6,8 +6,8 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const helmet = require("helmet");
-const mongoSanitize = require("express-mongo-sanitize");
-const { xss } = require("express-xss-sanitizer");
+const mongoSanitizeMiddleware = require('./middleware/mongoSanitizeMiddleware');
+const xssMiddleware = require('./middleware/xssMiddleware');
 const { connectDB } = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 const requestLogger = require('./middleware/requestLogger');
@@ -37,11 +37,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Data sanitization against NoSQL query injection
-app.use(mongoSanitize());
+// Data sanitization against NoSQL query injection (Custom Recursive Middleware)
+app.use(mongoSanitizeMiddleware);
 
-// Data sanitization against XSS (Modern package)
-app.use(xss());
+// Data sanitization against XSS (Custom Recursive Middleware)
+app.use(xssMiddleware);
 
 app.use(requestLogger);
 app.use(rateLimiter);

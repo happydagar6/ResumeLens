@@ -294,6 +294,7 @@ async function saveResults(state) {
                 resumeId: state.resume._id, 
                 jobId: state.job._id, 
                 overallScore: r.score,
+                scoreBreakdown: r.scoreBreakdown,
                 matchedSkills: r.matchedSkills,
                 missingSkills: r.missingSkills,
                 strengths: r.strengths,

@@ -1,5 +1,4 @@
 // src/services/validationService.js
-
 const { z } = require("zod");
 
 // Zod schemas for validating AI output structure
@@ -28,6 +27,11 @@ const entityExtractionSchema = z.object({
 
 const scoringSchema = z.object({
     score: z.number().min(0).max(100),
+    scoreBreakdown: z.object({
+        technical: z.object({ score: z.number().min(0).max(100), rationale: z.string() }),
+        experience: z.object({ score: z.number().min(0).max(100), rationale: z.string() }),
+        culture: z.object({ score: z.number().min(0).max(100), rationale: z.string() })
+    }).optional(),
     matchedSkills: z.array(z.string()).default([]),
     missingSkills: z.array(z.string()).default([]),
     strengths: z.string().default(""),

@@ -46,6 +46,9 @@ Use the following percentages to calculate the final 0-100 score:
 
 Return a JSON object with these exact fields:
 - score: number 0-100 (overall match percentage)
+- scoreBreakdown: object containing three keys (technical, experience, culture). Each key must be an object with:
+    - score: number 0-100
+    - rationale: string (1 sentence explaining why this specific score was given)
 - matchedSkills: array of strings (skills in resume that match job requirements)
 - missingSkills: array of strings (required skills the candidate lacks)
 - strengths: string (2-3 sentences on candidate's key strengths for this role)

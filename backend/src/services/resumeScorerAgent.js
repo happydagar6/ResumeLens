@@ -38,6 +38,12 @@ Always return valid JSON only.`,
 === JOB REQUIREMENTS (Structured Analysis) ===
 {analyzedJD}
 
+=== SCORING WEIGHTS ===
+Use the following percentages to calculate the final 0-100 score:
+- Technical Match: {technicalWeight}%
+- Experience Match: {experienceWeight}%
+- Culture/Soft Skills: {cultureWeight}%
+
 Return a JSON object with these exact fields:
 - score: number 0-100 (overall match percentage)
 - matchedSkills: array of strings (skills in resume that match job requirements)
@@ -59,11 +65,13 @@ const scoringChain = scoringPrompt
 // ── Main Function ──────────────────────────────────────────────────────────
 // IMPORTANT: analyzedJD is the 4th parameter added in Phase 3.
 // screeningController.js must pass job.analyzedJD as the 4th argument.
-async function scoreResume(resumeText, jobDescription, extractedEntities, analyzedJD = null) {
+async function scoreResume(resumeText, jobDescription, extractedEntities, analyzedJD = null, scoringWeights = null) {
     // Format analyzedJD for the prompt — gracefully handle if not yet available
     const analyzedJDText = analyzedJD
         ? JSON.stringify(analyzedJD, null, 2)
         : "Not available — score based on raw job description only.";
+
+    const weights = scoringWeights || { technical: 40, experience: 40, culture: 20 };
 
     let lastError = null;
 
@@ -74,6 +82,9 @@ async function scoreResume(resumeText, jobDescription, extractedEntities, analyz
                 jobDescription,
                 extractedEntities: JSON.stringify(extractedEntities, null, 2),
                 analyzedJD: analyzedJDText,
+                technicalWeight: weights.technical,
+                experienceWeight: weights.experience,
+                cultureWeight: weights.culture,
             });
 
             const validation = validateAIOutput(parsed, scoringSchema);

@@ -34,6 +34,7 @@ export default function JobForm({ onSubmit, defaultValues = {}, submitLabel = "C
       type: "full-time",
       salaryRange: "",
       status: "open",
+      scoringWeights: { technical: 40, experience: 40, culture: 20 },
       ...defaultValues,
     },
   });
@@ -151,6 +152,27 @@ export default function JobForm({ onSubmit, defaultValues = {}, submitLabel = "C
             <SelectItem value="closed">Closed</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="space-y-4 rounded-lg border border-border/50 bg-muted/20 p-4">
+        <div>
+          <h3 className="text-sm font-semibold">Custom AI Scoring Weights</h3>
+          <p className="text-xs text-muted-foreground">Adjust how the AI grades resumes (Must equal 100%)</p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="tech-weight">Technical (%)</Label>
+            <Input id="tech-weight" type="number" {...register("scoringWeights.technical")} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="exp-weight">Experience (%)</Label>
+            <Input id="exp-weight" type="number" {...register("scoringWeights.experience")} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cult-weight">Culture (%)</Label>
+            <Input id="cult-weight" type="number" {...register("scoringWeights.culture")} />
+          </div>
+        </div>
       </div>
 
       <Button type="submit" disabled={isSubmitting}>

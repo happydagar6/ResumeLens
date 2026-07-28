@@ -24,6 +24,11 @@ export const jobSchema = z.object({
   type: z.enum(["full-time", "part-time", "contract", "internship", "remote"]).optional(),
   salaryRange: z.string().optional(),
   status: z.enum(["open", "closed", "draft"]).optional(),
+  scoringWeights: z.object({
+    technical: z.coerce.number().min(0).max(100),
+    experience: z.coerce.number().min(0).max(100),
+    culture: z.coerce.number().min(0).max(100),
+  }).optional(),
 });
 
 export const resumeUploadSchema = z.object({

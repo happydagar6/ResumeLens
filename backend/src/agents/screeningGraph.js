@@ -224,7 +224,8 @@ async function scoreResumeNode(state) {
             state.resume.parsedText,
             state.job.description,
             state.extractedEntities || {},
-            state.analyzedJD || null
+            state.analyzedJD || null,
+            state.job.scoringWeights || null
         );
         console.log(`[Graph] Resume scoring — complete. Score: ${result.score}, Recommendation: ${result.recommendation}`);
         return { scoringResult: result, status: "scored" };

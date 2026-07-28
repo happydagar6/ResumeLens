@@ -5,6 +5,9 @@ dotenv.config(); // Load env vars BEFORE any other imports that use them
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const helmet = require("helmet");
+const mongoSanitize = require("express-mongo-sanitize");
+const { xss } = require("express-xss-sanitizer");
 const { connectDB } = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 const requestLogger = require('./middleware/requestLogger');
@@ -25,11 +28,21 @@ const authMiddleware = require('./middleware/authMiddleware');
 
 const app = express();
 
+// Set security HTTP headers
+app.use(helmet());
+
 // Middleware
 app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:3000', credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Data sanitization against NoSQL query injection
+app.use(mongoSanitize());
+
+// Data sanitization against XSS (Modern package)
+app.use(xss());
+
 app.use(requestLogger);
 app.use(rateLimiter);
 app.use("/uploads", express.static("uploads"));

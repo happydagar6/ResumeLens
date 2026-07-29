@@ -14,7 +14,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Wand2 } from "lucide-react";
+import { useGenerateJD } from "@/hooks/use-jobs";
+import { toast } from "sonner";
+
 
 export default function JobForm({ onSubmit, defaultValues = {}, submitLabel = "Create Job" }) {
   const {
@@ -38,6 +41,33 @@ export default function JobForm({ onSubmit, defaultValues = {}, submitLabel = "C
       ...defaultValues,
     },
   });
+
+  const { mutateAsync: generateJDApi, isPending: isGenerating } = useGenerateJD();
+  
+  // Magic Wand Click Handler
+  const handleGenerateJD = async () => {
+    // We only need title and company to generate the rest
+    const title = document.getElementById("title").value;
+    const company = document.getElementById("company").value;
+
+    if (!title || !company) {
+      toast.warning("Please enter a Job Title and Company first!");
+      return;
+    }
+
+    try {
+      const res = await generateJDApi({ title, company });
+      if (res.data) {
+        // Automatically fill the text areas instantly!
+        setValue("description", res.data.description, { shouldValidate: true });
+        setValue("requirements", res.data.requirements, { shouldValidate: true });
+        setValue("skills", res.data.skills.join(", "), { shouldValidate: true });
+        toast.success("✨ Magic! Form auto-filled.");
+      }
+    } catch (error) {
+      // Error is handled by the hook's toast
+    }
+  };
 
   const handleFormSubmit = (data) => {
     // Convert comma-separated skills to array
@@ -71,7 +101,20 @@ export default function JobForm({ onSubmit, defaultValues = {}, submitLabel = "C
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="description">Job Description *</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="description">Job Description *</Label>
+          <Button 
+            type="button" 
+            variant="secondary" 
+            size="sm" 
+            onClick={handleGenerateJD}
+            disabled={isGenerating}
+            className="h-8 bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400"
+          >
+            {isGenerating ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5 mr-1.5" />}
+            Generate with AI
+          </Button>
+        </div>
         <Textarea
           id="description"
           placeholder="Describe the role, responsibilities, and ideal candidate..."

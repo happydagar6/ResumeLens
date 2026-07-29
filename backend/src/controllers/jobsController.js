@@ -342,4 +342,26 @@ async function analyzeBias(req, res, next) {
     }
 }
 
-module.exports = { createJob, getJobs, getJobById, updateJob, deleteJob, assignJob, analyzeBias };
+const { generateJobDescription } = require("../services/jdGeneratorAgent");
+
+async function generateJD(req, res, next) {
+    try {
+        const { title, company } = req.body;
+
+        if (!title || !company) {
+            throw new CustomError("Title and Company are required to generate a JD", 400);
+        }
+
+        const jd = await generateJobDescription(title, company);
+
+        res.status(200).json({
+            success: true,
+            message: "Job Description generated successfully",
+            data: jd, // { description, requirements, skills }
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+module.exports = { createJob, getJobs, getJobById, updateJob, deleteJob, assignJob, analyzeBias, generateJD };

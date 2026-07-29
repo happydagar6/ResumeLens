@@ -1,7 +1,7 @@
 // src/routes/jobsRoutes.js
 
 const express = require("express");
-const { createJob, getJobs, getJobById, updateJob, deleteJob, assignJob, analyzeBias } = require("../controllers/jobsController");
+const { createJob, getJobs, getJobById, updateJob, deleteJob, assignJob, analyzeBias, generateJD } = require("../controllers/jobsController");
 const { getJobAnalytics } = require("../controllers/statsController");
 const authMiddleware = require("../middleware/authMiddleware");
 const authorize = require("../middleware/authorize");
@@ -25,6 +25,9 @@ router.put("/:id/assign", authorize("recruiter", "admin"), assignJob);
 
 // BIAS: recruiter/admin can trigger bias analysis on a job's description
 router.post("/:id/analyze-bias", authorize("recruiter", "admin"), analyzeBias);
+
+// WRITE: only recruiters and admins can create/update/delete
+router.post("/generate-jd", authorize("recruiter", "admin"), generateJD); // <-- ADD THIS LINE
 
 // ANALYTICS: pipeline funnel for a specific job
 router.get("/:id/analytics", getJobAnalytics);

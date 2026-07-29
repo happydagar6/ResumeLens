@@ -50,6 +50,33 @@ async function uploadResume(req, res, next) {
             }
         }
 
+        // Step 2.5: Duplicate Candidate Detection
+        let isPastApplicant = false;
+        
+        // Use the email provided in the form OR the one extracted by the AI
+        const emailToCheck = candidateEmail || (extractedEntities && extractedEntities.email);
+        
+        if (emailToCheck) {
+            // Look for any existing resume with this exact email
+            const existingResumes = await Resume.find({ 
+                candidateEmail: emailToCheck.toLowerCase() 
+            });
+
+            if (existingResumes.length > 0) {
+                // Check if they applied to THIS exact job already
+                const alreadyInThisJob = existingResumes.some(
+                    (res) => res.jobId.toString() === jobId
+                );
+
+                if (alreadyInThisJob) {
+                    throw new CustomError(`Duplicate Error: A candidate with email ${emailToCheck} has already been uploaded for this job.`, 409);
+                } else {
+                    // They applied to a DIFFERENT job previously. Flag them!
+                    isPastApplicant = true;
+                }
+            }
+        }
+
         // Step 3: Upload the PDF buffer to Cloudinary
         const uploadToCloudinary = new Promise((resolve, reject) => {
             const stream = cloudinary.uploader.upload_stream(
@@ -71,7 +98,8 @@ async function uploadResume(req, res, next) {
         // Step 4: Save resume to database with the Cloudinary URL
         const resume = new Resume({
             candidateName,
-            candidateEmail: candidateEmail || "",
+            candidateEmail: emailToCheck || "",
+            isPastApplicant,
             fileName: req.file.originalname,
             filePath: cloudData.secure_url, // Save the permanent cloud URL instead of local path!
             parsedText,

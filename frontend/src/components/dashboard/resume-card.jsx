@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Trash2, Brain, Loader2 } from "lucide-react";
+import { FileText, Trash2, Brain, Loader2, History } from "lucide-react";
 
 const statusConfig = {
   uploaded: { label: "Uploaded",  cls: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300" },
@@ -29,7 +29,15 @@ export default function ResumeCard({ resume, onScreen, onDelete, screening = fal
             <FileText className="h-5 w-5 text-white" />
           </div>
           <div>
-            <p className="text-sm font-medium">{resume.candidateName}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium">{resume.candidateName}</p>
+              {resume.isPastApplicant && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-amber-800 dark:bg-amber-900/40 dark:text-amber-400">
+                  <History className="h-3 w-3" />
+                  PAST APPLICANT
+                </span>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">
               {resume.fileName}
               {resume.candidateEmail && ` · ${resume.candidateEmail}`}

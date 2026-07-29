@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import ScoreGauge from "@/components/dashboard/score-gauge";
 import ScoreBreakdown from "@/components/dashboard/score-breakdown";
 import CandidateChat from "@/components/dashboard/candidate-chat";
+import AuditTimeline from "@/components/dashboard/audit-timeline";
 import SkillsDisplay from "@/components/dashboard/skills-display";
 import QuestionsDisplay from "@/components/dashboard/questions-display";
 import { LoadingSpinner } from "@/components/common/loading-state";
@@ -532,6 +533,12 @@ export default function ScreeningDetailPage() {
 
         {/* questions is the interviewQuestion document; .questions is the array */}
         <QuestionsDisplay questions={questions?.questions || []} />
+      </div>
+
+      {/* ── Candidate Activity Timeline ── */}
+      <div className="mt-8 space-y-4">
+        <h2 className="text-lg font-semibold tracking-tight border-b pb-2">Activity Timeline</h2>
+        <AuditTimeline resumeId={screening.resumeId} />
       </div>
 
       {/* ── Floating AI Chat Widget ── */}

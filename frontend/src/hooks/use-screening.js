@@ -204,3 +204,12 @@ export function useCandidateChat(screeningId) {
     },
   });
 }
+
+// ── GET /api/screening/:id/audit-logs ─────────────────────────────────────────
+export function useAuditLogs(resumeId) {
+  return useQuery({
+    queryKey: ["audit-logs", resumeId],
+    queryFn: () => api.get(`/screening/${resumeId}/audit-logs`),
+    enabled: !!resumeId,
+  });
+}

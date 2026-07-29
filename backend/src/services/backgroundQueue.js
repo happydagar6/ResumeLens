@@ -4,6 +4,7 @@ const { createRedisConnection } = require("../config/redis");
 const ProcessingJob = require("../models/processingJobModel");
 const { runScreeningPipeline } = require("../agents/screeningGraph");
 const { broadcastToUser } = require("./sseService");
+const { createAuditLog } = require("../utils/auditLogModel");
 
 const QUEUE_NAME = "resume-screening";
 
@@ -64,6 +65,16 @@ const screeningWorker = new Worker(
       recommendation: result.recommendation,
       screeningId: result.screeningId,
     });
+
+    // --- ADD THIS BLOCK FOR AUDIT LOGGING ---
+    await createAuditLog({
+      resumeId,
+      jobId,
+      action: "SCREENED",
+      performedBy: null, // Done automatically by the AI system
+      metadata: { score: result.score },
+    });
+    // ----------------------------------------
 
     return result;
   },

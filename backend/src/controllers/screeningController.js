@@ -7,6 +7,7 @@ const Notification = require("../models/notificationModel");
 const { scoreResume } = require("../services/resumeScorerAgent"); // CHANGED: was aiAgentService
 const { response } = require("../utils/response");
 const { generateEmailDraft } = require("../services/emailDraftAgent");
+const { createAuditLog } = require("../utils/auditLogModel");
 const { CustomError } = require("../utils/errors");
 
 async function screenResume(req, res, next) {
@@ -173,6 +174,17 @@ async function makeDecision(req, res, next) {
     screening.decidedAt = new Date();
     screening.notes = notes;
     await screening.save();
+
+    // --- ADD THIS BLOCK FOR AUDIT LOGGING ---
+    await createAuditLog({
+      resumeId: screening.resumeId,
+      jobId: screening.jobId?._id || screening.jobId,
+      action: "DECISION_CHANGED",
+      performedBy: req.user.id,
+      metadata: { newDecision: decision, notes },
+    });
+    // ----------------------------------------
+
 
     // Notify the job creator when a hiring manager makes a decision
     if (job.createdBy?.toString() !== req.user.id) {

@@ -15,6 +15,10 @@ const resumeSchema = new mongoose.Schema(
       lowercase: true,
       default: "",
     },
+    isPastApplicant: {
+      type: Boolean,
+      default: false,
+    },
     fileName: {
       type: String,
       required: true,

@@ -23,6 +23,21 @@ router.use(authMiddleware);
 router.get("/job/:jobId", getScreeningResults);
 router.get("/:id", getScreeningById);
 
+// GET /api/screening/:id/audit-logs
+// Returns the timeline events for a specific resume
+router.get("/:id/audit-logs", authorize("recruiter", "admin", "hiring_manager"), async (req, res, next) => {
+  try {
+    const AuditLog = require("../models/auditLogModel");
+    const logs = await AuditLog.find({ resumeId: req.params.id })
+      .populate("performedBy", "name email") // Get the name of who did it
+      .sort({ createdAt: 1 }); // Oldest first, for a top-to-bottom timeline
+    
+    res.status(200).json({ success: true, data: logs });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // WRITE: only recruiters and admins can trigger screening
 router.post("/", authorize("recruiter", "admin"), screenResume);
 

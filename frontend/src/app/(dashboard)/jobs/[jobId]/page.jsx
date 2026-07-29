@@ -373,6 +373,11 @@ export default function JobDetailPage() {
                   queryKey: RESUME_KEYS.byJob(jobId),
                 })
               }
+              onScreenAll={
+                canRunScreening
+                  ? () => bulkMutation.mutate({ jobId })
+                  : undefined
+              }
             />
           </div>
         </>

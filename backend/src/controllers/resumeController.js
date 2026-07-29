@@ -1,5 +1,6 @@
 // src/controllers/resumeController.js
 
+const { createAuditLog } = require("../utils/auditLogModel")
 const Resume = require("../models/resumeModel");
 const Job = require("../models/jobModel");
 const Screening = require("../models/screeningModel");

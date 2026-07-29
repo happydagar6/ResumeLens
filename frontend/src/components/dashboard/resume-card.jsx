@@ -2,7 +2,8 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Trash2, Brain, Loader2, History } from "lucide-react";
+import { FileText, Trash2, Brain, Loader2, History, Link } from "lucide-react";
+import { toast } from "sonner";
 
 const statusConfig = {
   uploaded: { label: "Uploaded",  cls: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300" },
@@ -70,10 +71,26 @@ export default function ResumeCard({ resume, onScreen, onDelete, screening = fal
               variant="ghost"
               className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
               onClick={() => onDelete(resume._id)}
+              title="Delete Resume"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
           )}
+
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 w-7 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+            onClick={(e) => {
+              e.stopPropagation(); // prevent card click
+              const url = `${window.location.origin}/status/${resume._id}`;
+              navigator.clipboard.writeText(url);
+              toast.success("Tracker link copied to clipboard!");
+            }}
+            title="Copy Candidate Tracker Link"
+          >
+            <Link className="h-3.5 w-3.5" />
+          </Button>
         </div>
       </CardContent>
     </Card>

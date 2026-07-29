@@ -12,7 +12,7 @@ export default function AuditTimeline({ resumeId }) {
   if (logs.length === 0) return <p className="text-sm text-muted-foreground">No activity recorded yet.</p>;
 
   return (
-    <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-muted before:to-transparent">
+    <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-linear-to-b before:from-transparent before:via-muted before:to-transparent">
       {logs.map((log) => {
         let Icon = FileText;
         let colorClass = "bg-muted text-muted-foreground";

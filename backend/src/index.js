@@ -22,6 +22,7 @@ const statsRoutes = require('./routes/statsRoutes');
 const usersRoutes = require('./routes/usersRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const publicRoutes = require('./routes/publicRoutes');
 const { addClient, removeClient } = require('./services/sseService');
 const authMiddleware = require('./middleware/authMiddleware');
 
@@ -122,6 +123,7 @@ app.use("/api/stats", statsRoutes);
 app.use("/api/users", usersRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
+app.use('/api/public', publicRoutes);
 // Error handler (must be last)
 app.use(errorHandler);
 

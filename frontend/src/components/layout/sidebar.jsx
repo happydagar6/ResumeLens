@@ -89,7 +89,7 @@ export default function Sidebar() {
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-primary to-violet-600 shadow-md shadow-primary/40">
           <Sparkles className="h-4 w-4 text-white" />
         </div>
-        <span className="text-sm font-bold gradient-brand">RecruitAI</span>
+        <span className="text-sm font-bold gradient-brand">ResumeLens</span>
       </div>
       <div className="mx-4 mb-4 h-px bg-linear-to-r from-transparent via-border to-transparent" />
       <nav className="flex flex-col gap-1 px-3 pb-4">
@@ -106,7 +106,7 @@ export function MobileSidebar({ onClose }) {
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-primary to-violet-600 shadow-md shadow-primary/40">
           <Sparkles className="h-4 w-4 text-white" />
         </div>
-        <span className="text-sm font-bold gradient-brand">RecruitAI</span>
+        <span className="text-sm font-bold gradient-brand">ResumeLens</span>
       </div>
       <div className="mx-4 mb-4 h-px bg-linear-to-r from-transparent via-border to-transparent" />
       <nav className="flex flex-col gap-1 px-3 pb-4">

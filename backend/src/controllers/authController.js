@@ -328,7 +328,7 @@ async function forgotPassword(req, res, next) {
 
         const message = `
             <h2>Password Reset Request</h2>
-            <p>You requested a password reset for your Recruit AI account.</p>
+            <p>You requested a password reset for your ResumeLens account.</p>
             <p>Click the link below to reset your password. This link is valid for 15 minutes.</p>
             <a href="${resetUrl}" style="padding: 10px 20px; background-color: #4f46e5; color: white; text-decoration: none; border-radius: 5px;">Reset Password</a>
             <p>If you did not request this, please ignore this email.</p>
@@ -337,7 +337,7 @@ async function forgotPassword(req, res, next) {
         try {
             await sendEmail({
                 email: user.email,
-                subject: "Recruit AI - Password Reset Token",
+                subject: "ResumeLens - Password Reset Token",
                 html: message,
             });
 

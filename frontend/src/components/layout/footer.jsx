@@ -8,7 +8,7 @@ export default function Footer() {
         <div className="flex items-center gap-2">
           <BrainCircuit className="h-5 w-5 text-muted-foreground" />
           <span className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} RecruitAI. All rights reserved.
+            © {new Date().getFullYear()} ResumeLens. All rights reserved.
           </span>
         </div>
         <div className="flex items-center gap-6 text-sm text-muted-foreground">

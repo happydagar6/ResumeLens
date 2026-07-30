@@ -52,7 +52,7 @@ app.use("/uploads", express.static("uploads"));
 app.get("/", (req, res) => {
     res.json({
         success: true,
-        message: "Welcome to RecruitAI API",
+        message: "Welcome to ResumeLens API",
         endpoints: {
             health: "/api/health",
             auth: "/api/auth",
@@ -69,7 +69,7 @@ app.get("/", (req, res) => {
 
 // Health check
 app.get("/api/health", (req, res) => {
-    res.json({ success: true, message: "RecruitAI API is running" });
+    res.json({ success: true, message: "ResumeLens API is running" });
 });
 
 // Queue health — shows current BullMQ stats
@@ -130,7 +130,7 @@ app.use(errorHandler);
 // Start the server
 const PORT = process.env.PORT || 5000;
 connectDB().then(() => {
-    app.listen(PORT, () => console.log(`RecruitAI server running on port ${PORT}`));
+    app.listen(PORT, () => console.log(`ResumeLens server running on port ${PORT}`));
 }).catch((err) => {
     console.error("DB connection failed", err);
     process.exit(1);

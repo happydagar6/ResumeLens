@@ -19,7 +19,7 @@ export default function AuthLayout({ children }) {
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-linear-to-br from-primary to-violet-600 shadow-xl shadow-primary/40">
               <Sparkles className="h-6 w-6 text-white" />
             </div>
-            <span className="text-3xl font-extrabold gradient-brand">RecruitAI</span>
+            <span className="text-3xl font-extrabold gradient-brand">ResumeLens</span>
           </Link>
           <p className="text-sm text-muted-foreground">AI-powered recruitment platform</p>
         </div>

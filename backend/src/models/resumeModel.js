@@ -62,5 +62,6 @@ const resumeSchema = new mongoose.Schema(
 
 resumeSchema.index({ jobId: 1, status: 1 }); // For efficient retrieval of resumes for a job
 resumeSchema.index({ jobId: 1, createdAt: -1 }); // For sorting resumes by upload date within a job
+resumeSchema.index({ candidateEmail: 1 }); // For duplicate detection queries
 
 module.exports = mongoose.model("Resume", resumeSchema);

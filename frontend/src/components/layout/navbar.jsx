@@ -10,7 +10,7 @@ export default function LandingNavbar() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link href="/" className="flex items-center gap-2">
           <BrainCircuit className="h-7 w-7 text-primary" />
-          <span className="text-xl font-bold tracking-tight">RecruitAI</span>
+          <span className="text-xl font-bold tracking-tight">ResumeLens</span>
         </Link>
         <nav className="flex items-center gap-3">
           <Button variant="ghost" asChild>

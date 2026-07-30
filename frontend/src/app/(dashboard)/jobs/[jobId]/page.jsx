@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
@@ -90,6 +90,11 @@ export default function JobDetailPage() {
   const { analytics } = useJobAnalytics(jobId);
 
   const isLoading = jobLoading || resumesLoading;
+
+  const isScreeningAny = resumes?.some(
+    (r) => r.status === "screening" || r.status === "processing"
+  );
+  const isBulkScreeningDisabled = bulkMutation.isPending || isScreeningAny;
 
   if (isLoading) return <LoadingSpinner />;
   if (!job) return <p className="text-muted-foreground">Job not found.</p>;
@@ -378,6 +383,7 @@ export default function JobDetailPage() {
                   ? () => bulkMutation.mutate({ jobId })
                   : undefined
               }
+              isScreeningAll={isBulkScreeningDisabled}
             />
           </div>
         </>
@@ -396,7 +402,7 @@ export default function JobDetailPage() {
               <Button
                 variant="outline"
                 size="sm"
-                disabled={bulkMutation.isPending}
+                disabled={isBulkScreeningDisabled}
                 onClick={() => bulkMutation.mutate({ jobId })}
               >
                 {bulkMutation.isPending ? (

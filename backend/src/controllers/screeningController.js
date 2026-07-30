@@ -485,7 +485,7 @@ async function chatAboutScreening(req, res, next) {
     const { chatAboutCandidate } = require("../services/candidateChatAgent");
     const answer = await chatAboutCandidate({
       jobTitle: job.title,
-      jobDescription: job.description,
+      jobDescription: `Description: ${job.description || ""}\nRequirements: ${job.requirements || ""}\nSkills: ${job.skills?.join(", ") || ""}`,
       resumeText: resume.parsedText,
       history, // The full conversation sent from the frontend
       userQuestion, // The new question

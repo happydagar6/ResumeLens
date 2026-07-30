@@ -60,7 +60,7 @@ const STATUS_ICONS = {
 //   onUploaded — callback to trigger after uploads complete (invalidates cache)
 //   onScreenAll — optional callback to trigger bulk AI screening after upload
 // ─────────────────────────────────────────────────────────────────────────────
-export default function ResumeUpload({ jobId, onUploaded, onScreenAll }) {
+export default function ResumeUpload({ jobId, onUploaded, onScreenAll, isScreeningAll }) {
 
   // queue: array of file items. Each item looks like:
   // { file: File, name: string, status: "pending"|"uploading"|"done"|"error", error: string|null }
@@ -345,6 +345,7 @@ export default function ResumeUpload({ jobId, onUploaded, onScreenAll }) {
             {allDone && onScreenAll && (
               <Button
                 variant="outline"
+                disabled={isScreeningAll}
                 onClick={() => {
                   onScreenAll(); // trigger the bulk screening in the parent
                   setAllDone(false); // hide this button after clicking

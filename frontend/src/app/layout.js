@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "RecruitAI - AI-Powered Recruitment Screening",
+  title: "ResumeLens - AI-Powered Recruitment Screening",
   description:
     "Screen resumes smarter with AI. Parse resumes, score candidates, and generate interview questions automatically.",
 };

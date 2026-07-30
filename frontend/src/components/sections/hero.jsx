@@ -18,7 +18,7 @@ export default function Hero() {
             <span className="text-primary">Faster</span>
           </h1>
           <p className="mt-6 text-lg leading-8 text-muted-foreground">
-            RecruitAI uses artificial intelligence to parse resumes, score candidates
+            ResumeLens uses artificial intelligence to parse resumes, score candidates
             against job descriptions, and generate personalized interview questions —
             saving you hours of manual screening.
           </p>

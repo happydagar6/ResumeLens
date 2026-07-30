@@ -538,7 +538,7 @@ export default function ScreeningDetailPage() {
       {/* ── Candidate Activity Timeline ── */}
       <div className="mt-8 space-y-4">
         <h2 className="text-lg font-semibold tracking-tight border-b pb-2">Activity Timeline</h2>
-        <AuditTimeline resumeId={screening.resumeId} />
+        <AuditTimeline resumeId={candidate?._id} />
       </div>
 
       {/* ── Floating AI Chat Widget ── */}

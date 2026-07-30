@@ -85,7 +85,7 @@ export function generateScreeningPDF(screening, questions = []) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
   doc.setTextColor(...COLORS.white);
-  doc.text("RecruitAI", margin, 12);
+  doc.text("ResumeLens", margin, 12);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
@@ -395,7 +395,7 @@ export function generateScreeningPDF(screening, questions = []) {
     doc.setFontSize(7);
     doc.setTextColor(...COLORS.muted);
     doc.text(
-      `RecruitAI Screening Report  •  Page ${p} of ${totalPages}`,
+      `ResumeLens Screening Report  •  Page ${p} of ${totalPages}`,
       pageWidth / 2,
       pageHeight - 8,
       { align: "center" }

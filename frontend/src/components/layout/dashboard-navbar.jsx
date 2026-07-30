@@ -30,7 +30,7 @@ export default function DashboardNavbar() {
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-primary to-violet-600 shadow-md shadow-primary/30">
           <Sparkles className="h-4 w-4 text-white" />
         </div>
-        <span className="text-lg font-bold gradient-brand hidden sm:inline">RecruitAI</span>
+        <span className="text-lg font-bold gradient-brand hidden sm:inline">ResumeLens</span>
       </Link>
 
       {user && <NotificationBell />}

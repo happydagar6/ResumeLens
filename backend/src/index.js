@@ -29,6 +29,9 @@ const authMiddleware = require('./middleware/authMiddleware');
 
 const app = express();
 
+// Trust the reverse proxy (Render) so secure cookies can be set
+app.set('trust proxy', 1);
+
 // Set security HTTP headers
 app.use(helmet());
 

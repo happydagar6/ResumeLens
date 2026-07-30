@@ -41,7 +41,8 @@ function setAuthCookies(res, userId, role) {
     const accessToken = generateAccessToken(userId, role);
     const refreshToken = generateRefreshToken(userId);
 
-    const isProduction = process.env.NODE_ENV === "production";
+    // Render automatically sets RENDER=true. If NODE_ENV is omitted, fall back to true on Render.
+    const isProduction = process.env.NODE_ENV === "production" || process.env.RENDER === "true";
 
     res.cookie("token", accessToken, {
         httpOnly: true,
@@ -169,15 +170,16 @@ async function login(req, res, next) {
 
 async function logout(req, res, next) {
     try {
+        const isProduction = process.env.NODE_ENV === "production" || process.env.RENDER === "true";
         res.clearCookie("token", {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
         });
         res.clearCookie("refreshToken", {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
             path: "/api/auth",
         });
         response(res, 200, null, "Logged out successfully");

@@ -57,7 +57,7 @@ const emailChain = emailPrompt.pipe(emailModel).pipe(new StringOutputParser());
 // Main function
 async function generateEmailDraft({ emailType, candidateName, jobTitle, company, score, strengths, matchedSkills, missingSkills }) {
     const validTypes = ["shortlisted", "rejection", "interview_invite", "offer"];
-    if (!validTypes.includes(emailType)) {
+    if (!validTypes.includes(emailType)) { // validate the email type
         throw new CustomError(`Invalid emailType. Must be one of: ${validTypes.join(", ")}`, 400);
     }
 

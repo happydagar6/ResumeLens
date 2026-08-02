@@ -5,11 +5,11 @@ import { format } from "date-fns";
 import { Upload, Cpu, CheckCircle, Mail, FileText, User } from "lucide-react";
 
 export default function AuditTimeline({ resumeId }) {
-  const { data, isLoading } = useAuditLogs(resumeId);
-  const logs = data?.data || [];
+  const { data, isLoading } = useAuditLogs(resumeId); // audit logs
+  const logs = data?.data || []; // logs
 
-  if (isLoading) return <p className="text-sm text-muted-foreground animate-pulse">Loading timeline...</p>;
-  if (logs.length === 0) return <p className="text-sm text-muted-foreground">No activity recorded yet.</p>;
+  if (isLoading) return <p className="text-sm text-muted-foreground animate-pulse">Loading timeline...</p>; // loading message
+  if (logs.length === 0) return <p className="text-sm text-muted-foreground">No activity recorded yet.</p>; // no activity message
 
   return (
     <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-linear-to-b before:from-transparent before:via-muted before:to-transparent">

@@ -1,7 +1,6 @@
 "use client";
 
 // frontend/src/hooks/use-sse.js
-//
 // Opens a persistent SSE connection to GET /api/events on the backend.
 // The server pushes events (like "screening_complete") over this connection.
 // We listen and automatically refresh the relevant React Query caches —
@@ -37,7 +36,7 @@ export function useSSE(isAuthenticated = false) {
         // ── Event: a resume finished AI screening ────────────────────────────
         // BullMQ worker fires this the moment a pipeline completes.
         eventSource.addEventListener("screening_complete", (e) => {
-            const { resumeId, jobId, score, recommendation, screeningId } = JSON.parse(e.data);
+            const { resumeId, jobId, score, recommendation, screeningId } = JSON.parse(e.data); // parses the JSON data from the event
 
             // Tell React Query to re-fetch the resume list for this job.
             // This causes the candidate row to flip from "Screening..." → "Screened ✅"

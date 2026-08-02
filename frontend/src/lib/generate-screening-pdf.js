@@ -1,5 +1,4 @@
 // src/lib/generate-screening-pdf.js
-//
 // Generates a professional PDF screening report using jsPDF.
 // Called from the screening detail page — all data is already in memory.
 // No backend call needed.
@@ -35,7 +34,7 @@ const DECISION_LABELS = {
   offered: "Offered",
 };
 
-// ── Score color helper (same logic as your ScoreGauge component) ──────────────
+// ── Score color helper (same logic as ScoreGauge component) ──────────────
 function getScoreColor(score) {
   if (score >= 80) return COLORS.green;
   if (score >= 60) return COLORS.yellow;
@@ -44,55 +43,55 @@ function getScoreColor(score) {
 }
 
 function getRecommendationColor(rec) {
-  if (rec === "strong_yes" || rec === "yes") return COLORS.green;
-  if (rec === "maybe") return COLORS.yellow;
-  return COLORS.red;
+  if (rec === "strong_yes" || rec === "yes") return COLORS.green; // this is for Strong Yes and Yes
+  if (rec === "maybe") return COLORS.yellow; // this is for Maybe
+  return COLORS.red; // this is for No and Strong No
 }
 
 // ── Main export function ──────────────────────────────────────────────────────
 // screening: the full populated screening object from useScreening()
 // questions: the questions array from useQuestions() — can be null/empty
 export function generateScreeningPDF(screening, questions = []) {
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const doc = new jsPDF({ unit: "mm", format: "a4" }); // A4 size in mm
   const pageWidth = doc.internal.pageSize.getWidth();   // 210
   const pageHeight = doc.internal.pageSize.getHeight();  // 297
-  const margin = 15;
+  const margin = 15; // 15mm margin on all sides
   const contentWidth = pageWidth - margin * 2;           // 180
   let y = margin; // vertical cursor — moves down as we draw
 
   // Helper: check if we need a new page
   const checkPageBreak = (needed) => {
-    if (y + needed > pageHeight - margin) {
-      doc.addPage();
-      y = margin;
+    if (y + needed > pageHeight - margin) { // Check if we need a new page
+      doc.addPage(); // Add new page if needed
+      y = margin; // Reset vertical cursor
     }
   };
 
   // Helper: draw a horizontal line
   const drawLine = () => {
-    doc.setDrawColor(...COLORS.border);
-    doc.setLineWidth(0.3);
-    doc.line(margin, y, pageWidth - margin, y);
-    y += 4;
+    doc.setDrawColor(...COLORS.border); // border color
+    doc.setLineWidth(0.3); // border width
+    doc.line(margin, y, pageWidth - margin, y); // draw line
+    y += 4; // move cursor down
   };
 
   // ── 1. HEADER ─────────────────────────────────────────────────────────────
 
   // Purple brand bar at top
-  doc.setFillColor(...COLORS.primary);
-  doc.rect(0, 0, pageWidth, 28, "F");
+  doc.setFillColor(...COLORS.primary); // fill color
+  doc.rect(0, 0, pageWidth, 28, "F"); // rectangle
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.setTextColor(...COLORS.white);
-  doc.text("ResumeLens", margin, 12);
+  doc.setFont("helvetica", "bold"); // font style
+  doc.setFontSize(18); // font size
+  doc.setTextColor(...COLORS.white); // font color
+  doc.text("ResumeLens", margin, 12); // text
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.text("AI-Powered Screening Report", margin, 19);
+  doc.setFont("helvetica", "normal"); // font style
+  doc.setFontSize(10); // font size
+  doc.text("AI-Powered Screening Report", margin, 19); // text
 
   // Date on the right
-  doc.setFontSize(9);
+  doc.setFontSize(9); // font size
   doc.text(
     `Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`,
     pageWidth - margin,
@@ -104,55 +103,55 @@ export function generateScreeningPDF(screening, questions = []) {
 
   // ── 2. CANDIDATE INFO ─────────────────────────────────────────────────────
 
-  const candidate = screening.resumeId;
-  const job = screening.jobId;
+  const candidate = screening.resumeId; // candidate info
+  const job = screening.jobId; // job info
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.setTextColor(...COLORS.dark);
+  doc.setFont("helvetica", "bold"); // font style
+  doc.setFontSize(14); // font size
+  doc.setTextColor(...COLORS.dark); // font color
   doc.text(candidate?.candidateName || "Unknown Candidate", margin, y);
   y += 6;
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(...COLORS.muted);
-  if (candidate?.candidateEmail) {
-    doc.text(candidate.candidateEmail, margin, y);
-    y += 5;
+  doc.setFont("helvetica", "normal"); // font style
+  doc.setFontSize(10); // font size
+  doc.setTextColor(...COLORS.muted); // font color
+  if (candidate?.candidateEmail) { // check if candidate email exists
+    doc.text(candidate.candidateEmail, margin, y); // email
+    y += 5; // move cursor down
   }
 
   doc.text(`Position: ${job?.title || "N/A"}  •  Company: ${job?.company || "N/A"}`, margin, y);
   y += 8;
 
-  drawLine();
+  drawLine(); // draw horizontal line
 
   // ── 3. SCORE & RECOMMENDATION ─────────────────────────────────────────────
 
   // Score circle
-  const scoreColor = getScoreColor(screening.overallScore);
-  const circleX = margin + 15;
-  const circleY = y + 10;
+  const scoreColor = getScoreColor(screening.overallScore); // color of score circle
+  const circleX = margin + 15; // x coordinate of circle
+  const circleY = y + 10; // y coordinate of circle
 
   // Filled score circle
-  doc.setFillColor(...scoreColor);
+  doc.setFillColor(...scoreColor); // fill color of circle
   doc.circle(circleX, circleY, 12, "F");
 
   // Score text inside circle
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.setTextColor(...COLORS.white);
+  doc.setFont("helvetica", "bold"); // font style
+  doc.setFontSize(16); // font size
+  doc.setTextColor(...COLORS.white); // font color
   doc.text(String(screening.overallScore), circleX, circleY + 2, { align: "center" });
 
   // "/100" label below circle
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...COLORS.muted);
+  doc.setFont("helvetica", "normal"); // font style
+  doc.setFontSize(8); // font size
+  doc.setTextColor(...COLORS.muted); // font color
   doc.text("/100", circleX, circleY + 16, { align: "center" });
 
   // Score label to the right
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(...COLORS.dark);
+  doc.setFont("helvetica", "bold"); // font style
+  doc.setFontSize(12); // font size
+  doc.setTextColor(...COLORS.dark); // font color
   doc.text("Match Score", circleX + 20, circleY - 3);
 
   // Recommendation next to score

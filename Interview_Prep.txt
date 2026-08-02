@@ -188,7 +188,7 @@ A: When a user logs in, the server creates TWO tokens:
    - Refresh Token — used to get a new access token without re-login
    The access token is stored in an HttpOnly cookie (cannot be read
    by JavaScript — protects against XSS attacks). The authMiddleware
-   reads this cookie on every protected request, verifies it with
+   reads this cookie on every protected reque st, verifies it with
    JWT_SECRET, and attaches the user object to req.user.
 
 Q: How is the public candidate tracker link secured?

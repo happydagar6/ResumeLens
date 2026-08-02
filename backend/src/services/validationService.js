@@ -4,19 +4,19 @@ const { z } = require("zod");
 // Zod schemas for validating AI output structure
 
 const entityExtractionSchema = z.object({
-    skills: z.array(z.string()).default([]),
+    skills: z.array(z.string()).default([]), // Array of strings
     experience: z.array(z.object({
-        role: z.string().optional(),
-        company: z.string().optional(),
-        duration: z.string().optional(),
-        description: z.union([z.string(), z.array(z.string())]).optional(),
+        role: z.string().optional(), // String
+        company: z.string().optional(), // String
+        duration: z.string().optional(), // String
+        description: z.union([z.string(), z.array(z.string())]).optional(), // String or array of strings
     })).default([]),
     education: z.array(z.object({
-        degree: z.string().optional(),
-        institution: z.string().optional(),
-        year: z.string().optional(),
+        degree: z.string().optional(), // String
+        institution: z.string().optional(), // String
+        year: z.string().optional(), // String
     })).default([]),
-    certifications: z.array(z.string()).default([]),
+    certifications: z.array(z.string()).default([]), // Array of strings
     contactInfo: z.object({
         name: z.string().optional(),
         email: z.string().optional(),
@@ -25,19 +25,21 @@ const entityExtractionSchema = z.object({
     }).optional(),
 });
 
+
+// Scoring Schema
 const scoringSchema = z.object({
-    score: z.number().min(0).max(100),
+    score: z.number().min(0).max(100), // Score between 0 and 100
     scoreBreakdown: z.object({
-        technical: z.object({ score: z.number().min(0).max(100), rationale: z.string() }),
-        experience: z.object({ score: z.number().min(0).max(100), rationale: z.string() }),
+        technical: z.object({ score: z.number().min(0).max(100), rationale: z.string() }), // Technical score and rationale
+        experience: z.object({ score: z.number().min(0).max(100), rationale: z.string() }), // Experience score and rationale
         culture: z.object({ score: z.number().min(0).max(100), rationale: z.string() })
     }).optional(),
-    matchedSkills: z.array(z.string()).default([]),
-    missingSkills: z.array(z.string()).default([]),
-    strengths: z.string().default(""),
-    weaknesses: z.string().default(""),
-    recommendation: z.enum(["strong_yes", "yes", "maybe", "no", "strong_no"]).default("maybe"),
-    rationale: z.string().optional(),
+    matchedSkills: z.array(z.string()).default([]), // Array of strings
+    missingSkills: z.array(z.string()).default([]), // Array of strings
+    strengths: z.string().default(""), // String
+    weaknesses: z.string().default(""), // String
+    recommendation: z.enum(["strong_yes", "yes", "maybe", "no", "strong_no"]).default("maybe"), // Enum
+    rationale: z.string().optional(), // String
 });
 
 
@@ -58,6 +60,7 @@ const biasDetectionSchema = z.object({
 });
 
 
+// Questions Schema
 const questionsSchema = z.object({
     questions: z.array(z.object({
         question: z.string(),
@@ -66,29 +69,34 @@ const questionsSchema = z.object({
     })),
 });
 
+// Helper function to validate AI output structure
 function validateAIOutput(data, schema) {
     const result = schema.safeParse(data);
-    if (!result.success) {
-        console.error("AI output validation failed:", result.error.issues);
+    if (!result.success) { // Error handling
+        console.error("AI output validation failed:", result.error.issues); // Error message
         return { valid: false, errors: result.error.issues, data: null };
     }
     return { valid: true, errors: null, data: result.data };
 }
 
+// Helper function to verify matched skills in text
 function verifyMatchedSkillsInText(matchedSkills, resumeText) {
-    const flags = [];
+    const flags = []; // Array of strings
 
-    if (!matchedSkills || matchedSkills.length === 0) return flags;
+    if (!matchedSkills || matchedSkills.length === 0) return flags; // If no matched skills, return empty array
     if (!resumeText || resumeText.trim() === "") {
         flags.push("SKILL_CHECK_SKIPPED: Resume text is empty — cannot verify matched skills");
         return flags;
     }
 
+    // Convert resume text to lowercase
     const lowerText = resumeText.toLowerCase();
 
+    // Loop through matched skills
     for (const skill of matchedSkills) {
         if (!skill || typeof skill !== "string") continue;
 
+        // Convert skill to lowercase
         const lowerSkill = skill.toLowerCase().trim();
 
         // Strategy 1: Direct substring match
@@ -109,6 +117,7 @@ function verifyMatchedSkillsInText(matchedSkills, resumeText) {
         );
     }
 
+    // Return array of flags
     return flags;
 }
 
@@ -125,15 +134,14 @@ function verifyScoreConsistency(scoringResult) {
     const { score, matchedSkills, missingSkills, recommendation } = scoringResult;
 
     // ── Skill ratio vs score ──────────────────────────────────────────────────
-    const totalSkills = (matchedSkills?.length || 0) + (missingSkills?.length || 0);
+    const totalSkills = (matchedSkills?.length || 0) + (missingSkills?.length || 0); // Total number of skills
 
-    if (totalSkills >= 3) {
-        // Only run this check if there are enough data points to be meaningful
-        const matchRatio = (matchedSkills?.length || 0) / totalSkills;
-        const expectedCenter = matchRatio * 100;
-        const tolerance = 30;
+    if (totalSkills >= 3) { // Only run this check if there are enough data points to be meaningful
+        const matchRatio = (matchedSkills?.length || 0) / totalSkills; // Ratio of matched skills to total skills
+        const expectedCenter = matchRatio * 100; // Expected center score based on match ratio
+        const tolerance = 30; // Tolerance for score deviation
 
-        if (score < expectedCenter - tolerance || score > expectedCenter + tolerance) {
+        if (score < expectedCenter - tolerance || score > expectedCenter + tolerance) { // Check if score is outside expected range
             flags.push(
                 `SCORE_SKILL_MISMATCH: Score ${score} is outside expected range ` +
                 `[${Math.round(expectedCenter - tolerance)}–${Math.round(expectedCenter + tolerance)}] ` +
@@ -151,31 +159,31 @@ function verifyScoreConsistency(scoringResult) {
     }
 
     // "strong_no" with a very high score is contradictory
-    if (score >= 80 && (recommendation === "no" || recommendation === "strong_no")) {
+    if (score >= 80 && (recommendation === "no" || recommendation === "strong_no")) { // Check if score is too high for "strong_no" recommendation
         flags.push(
-            `RECOMMENDATION_MISMATCH: Score ${score} is high (≥80) but recommendation is "${recommendation}"`
+            `RECOMMENDATION_MISMATCH: Score ${score} is high     (≥80) but recommendation is "${recommendation}"`
         );
     }
 
     // "strong_yes" should require a high score
-    if (recommendation === "strong_yes" && score < 75) {
+    if (recommendation === "strong_yes" && score < 75) { // Check if score is too low for "strong_yes" recommendation
         flags.push(
             `STRONG_YES_LOW_SCORE: Recommendation is "strong_yes" but score is only ${score} (<75)`
         );
     }
-
+    // Return array of flags
     return flags;
 }
 
 // CHECK 3: Suspicious Pattern Detection
 // Flag patterns that suggest the AI was uncertain, confused, or produced
 // a low-quality output rather than a genuine assessment.
-function detectSuspiciousPatterns(scoringResult) {
-    const flags = [];
-    const { score, matchedSkills, missingSkills } = scoringResult;
+function detectSuspiciousPatterns(scoringResult) { // Detect suspicious patterns in scoring results
+    const flags = []; // Array of flags
+    const { score, matchedSkills, missingSkills } = scoringResult; // Destructure scoring results
 
     // Exactly 50 is a classic AI "I don't know, I'll split the difference" default
-    if (score === 50) {
+    if (score === 50) { // Check if score is exactly 50
         flags.push(
             "SUSPICIOUS_SCORE_50: Score is exactly 50 — this is a common AI default when uncertain"
         );
@@ -217,6 +225,7 @@ function detectSuspiciousPatterns(scoringResult) {
         );
     }
 
+    // Return array of flags
     return flags;
 }
 
@@ -224,26 +233,26 @@ function detectSuspiciousPatterns(scoringResult) {
 // Called by the validateResults node in screeningGraph.js.
 // Takes the full AI scoring result + raw resume text.
 // Returns { flags, passed, flagCount } — always returns, never throws.
-function crossValidateScoringResult(scoringResult, resumeText) {
-    try {
+function crossValidateScoringResult(scoringResult, resumeText) { // Cross-validate scoring results
+    try { // Try to validate scoring results
         const skillFlags = verifyMatchedSkillsInText(
             scoringResult.matchedSkills || [],
             resumeText
-        );
-        const consistencyFlags = verifyScoreConsistency(scoringResult);
-        const suspiciousFlags = detectSuspiciousPatterns(scoringResult);
+        ); // Verify matched skills
+        const consistencyFlags = verifyScoreConsistency(scoringResult); // Verify score consistency
+        const suspiciousFlags = detectSuspiciousPatterns(scoringResult); // Detect suspicious patterns
 
-        const allFlags = [...skillFlags, ...consistencyFlags, ...suspiciousFlags];
+        const allFlags = [...skillFlags, ...consistencyFlags, ...suspiciousFlags]; // Combine all flags
 
         return {
             flags: allFlags,
             passed: allFlags.length === 0,
             flagCount: allFlags.length,
-        };
-    } catch (error) {
+        }; // Return validation results
+    } catch (error) { // Catch validation errors
         // Should never throw but just in case
         return {
-            flags: [`VALIDATION_ERROR: Validation itself threw — ${error.message}`],
+            flags: [`VALIDATION_ERROR: Validation itself threw — ${error.message}`], // Return error flags
             passed: false,
             flagCount: 1,
         };

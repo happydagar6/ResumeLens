@@ -8,27 +8,15 @@
 // Each user can have multiple tabs open, so we store a Set of connections.
 const clients = new Map();
 
-/**
- * Register a new SSE connection for a user.
- * Called when the browser hits GET /api/events.
- * 
- * @param {string} userId - the authenticated user's ID (from JWT)
- * @param {object} res    - the Express response object (kept open)
- */
 function addClient(userId, res) {
     if (!clients.has(userId)) {
-        clients.set(userId, new Set());
+        clients.set(userId, new Set()); 
     }
     clients.get(userId).add(res);
     console.log(`[SSE] Client connected — userId: ${userId}. Total connections: ${getTotalClientCount()}`);
 }
 
-/**
- * Remove a connection when the browser closes or navigates away.
- * 
- * @param {string} userId
- * @param {object} res
- */
+// Remove the connection when the browser closes or navigates away
 function removeClient(userId, res) {
     const userConnections = clients.get(userId);
     if (userConnections) {
@@ -40,13 +28,9 @@ function removeClient(userId, res) {
     console.log(`[SSE] Client disconnected — userId: ${userId}. Total connections: ${getTotalClientCount()}`);
 }
 
-/**
- * Push a real-time event to ALL open tabs/windows of a specific user.
- * 
- * @param {string} userId    - who to send to
- * @param {string} eventName - the event type, e.g. "screening_complete"
- * @param {object} payload   - any data you want to send, will be JSON-serialized
- */
+
+
+// Push a real-time event to ALL open tabs/windows of a specific user.
 function broadcastToUser(userId, eventName, payload) {
     const userConnections = clients.get(userId?.toString());
     if (!userConnections || userConnections.size === 0) {
@@ -69,6 +53,7 @@ function broadcastToUser(userId, eventName, payload) {
     }
 }
 
+// Get the total number of active connections
 function getTotalClientCount() {
     let total = 0;
     for (const set of clients.values()) total += set.size;

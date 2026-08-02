@@ -54,48 +54,48 @@ async function getOverviewStats(req, res, next) {
       recentJobs,
     ] = await Promise.all([
       // Job counts — scoped to user
-      Job.countDocuments(jobFilter),
-      Job.countDocuments({ ...jobFilter, status: "open" }),
-      Job.countDocuments({ ...jobFilter, status: "closed" }),
+      Job.countDocuments(jobFilter), // Total number of jobs created by the user
+      Job.countDocuments({ ...jobFilter, status: "open" }), // Total number of open jobs created by the user
+      Job.countDocuments({ ...jobFilter, status: "closed" }), // Total number of closed jobs created by the user
 
       // Resume counts — scoped via jobIds
-      Resume.countDocuments(resumeFilter),
-      Resume.countDocuments({ ...resumeFilter, status: "screened" }),
-      Resume.countDocuments({ ...resumeFilter, status: "error" }),
+      Resume.countDocuments(resumeFilter), // Total number of resumes uploaded by the user
+      Resume.countDocuments({ ...resumeFilter, status: "screened" }), // Total number of screened resumes by the user
+      Resume.countDocuments({ ...resumeFilter, status: "error" }), // Total number of error resumes by the user
 
       // Scoring stats — avg, max, min across user's screenings
       Screening.aggregate([
-        { $match: screeningMatch },
+        { $match: screeningMatch }, // Match the screenings based on the user's job IDs
         {
-          $group: {
-            _id: null,
-            avgScore: { $avg: "$overallScore" },
-            highestScore: { $max: "$overallScore" },
-            lowestScore: { $min: "$overallScore" },
-            totalScreenings: { $sum: 1 },
+          $group: { // Group the screenings by overallScore to calculate avg, max, min, and totalScreenings
+            _id: null, // Group all screenings together
+            avgScore: { $avg: "$overallScore" }, // Calculate the average overallScore
+            highestScore: { $max: "$overallScore" }, // Calculate the highest overallScore
+            lowestScore: { $min: "$overallScore" }, // Calculate the lowest overallScore
+            totalScreenings: { $sum: 1 }, // Calculate the total number of screenings
           },
         },
       ]),
 
       // How many screenings per recommendation category — user scoped
       Screening.aggregate([
-        { $match: screeningMatch },
+        { $match: screeningMatch }, // Match the screenings based on the user's job IDs
         {
-          $group: {
-            _id: "$recommendation",
-            count: { $sum: 1 },
+          $group: { // Group the screenings by recommendation to calculate avg, max, min, and totalScreenings
+            _id: "$recommendation", // Group all screenings together
+            count: { $sum: 1 }, // Calculate the total number of screenings
           },
         },
-        { $sort: { count: -1 } },
+        { $sort: { count: -1 } }, // Sort the screenings by count in descending order
       ]),
 
       // Resume pipeline breakdown (all statuses) — user scoped
       Resume.aggregate([
-        { $match: resumeFilter },
+        { $match: resumeFilter }, // Match the resumes based on the user's job IDs
         {
-          $group: {
-            _id: "$status",
-            count: { $sum: 1 },
+          $group: { // Group the resumes by status to calculate avg, max, min, and totalScreenings
+            _id: "$status", // Group all resumes together
+            count: { $sum: 1 }, // Calculate the total number of resumes
           },
         },
       ]),
@@ -132,57 +132,57 @@ async function getOverviewStats(req, res, next) {
       highestScore: 0,
       lowestScore: 0,
       totalScreenings: 0,
-    };
+    }; // Scoring stats
 
     // Convert recommendation array → { strong_yes: 4, yes: 10, ... }
     const recommendations = recommendationBreakdown.reduce((acc, item) => {
       acc[item._id] = item.count;
       return acc;
-    }, {});
+    }, {}); // Recommendation breakdown
 
     // Convert resume status array → { uploaded: 2, parsed: 5, screened: 20, error: 1, ... }
     const resumesByStatus = resumeStatusBreakdown.reduce((acc, item) => {
-      acc[item._id] = item.count;
-      return acc;
-    }, {});
+      acc[item._id] = item.count; // Convert resume status array to object
+      return acc; // Return the object
+    }, {}); // Resume status breakdown
 
     // Screening rate = % of resumes that have been screened
     const screeningRate =
-      totalResumes > 0 ? Math.round((totalScreened / totalResumes) * 100) : 0;
+      totalResumes > 0 ? Math.round((totalScreened / totalResumes) * 100) : 0; // Calculate the screening rate
 
     response(
       res,
       200,
       {
         jobs: {
-          total: totalJobs,
-          open: openJobs,
-          closed: closedJobs,
-          draft: totalJobs - openJobs - closedJobs,
+          total: totalJobs, // Total number of jobs
+          open: openJobs, // Open jobs
+          closed: closedJobs, // Closed jobs
+          draft: totalJobs - openJobs - closedJobs, // Draft jobs
         },
         resumes: {
-          total: totalResumes,
-          screened: totalScreened,
-          errors: totalErrors,
-          pending: totalResumes - totalScreened - totalErrors,
+          total: totalResumes, // Total number of resumes
+          screened: totalScreened, // Screened resumes
+          errors: totalErrors, // Error resumes
+          pending: totalResumes - totalScreened - totalErrors, // Pending resumes
           screeningRate, // % of resumes successfully screened
-          byStatus: resumesByStatus,
+          byStatus: resumesByStatus, // Resume status breakdown
         },
         screening: {
-          totalScreenings: scoring.totalScreenings,
+          totalScreenings: scoring.totalScreenings, // Total number of screenings
           avgScore: scoring.avgScore
             ? Math.round(scoring.avgScore * 10) / 10 // 1 decimal place
             : 0,
-          highestScore: scoring.highestScore || 0,
-          lowestScore: scoring.lowestScore || 0,
-          byRecommendation: recommendations,
+          highestScore: scoring.highestScore || 0, // Highest score
+          lowestScore: scoring.lowestScore || 0, // Lowest score
+          byRecommendation: recommendations, // Recommendation breakdown
         },
-        recentJobs,
+        recentJobs, // Recent jobs
       },
-      "Overview stats fetched successfully",
-    );
+      "Overview stats fetched successfully", // success message
+    ); // call response function
   } catch (err) {
-    next(err);
+    next(err); // pass error to the error handling middleware
   }
 }
 
@@ -196,11 +196,11 @@ async function getOverviewStats(req, res, next) {
 // ─────────────────────────────────────────────────────────────────────────────
 async function getJobStats(req, res, next) {
   try {
-    const { jobId } = req.params;
+    const { jobId } = req.params; // Get job ID from request parameters
 
     // Validate ObjectId format before hitting DB
     if (!mongoose.Types.ObjectId.isValid(jobId)) {
-      throw new CustomError("Invalid job ID", 400);
+      throw new CustomError("Invalid job ID", 400); // Invalid job ID error
     }
 
     // Confirm the job exists
@@ -220,6 +220,17 @@ async function getJobStats(req, res, next) {
     const jobObjectId = new mongoose.Types.ObjectId(jobId);
 
     // Run all aggregations in parallel
+    // Why we used Promise.all here and how do i explain it in interview that why i used this and what it will do here ?
+    // We used Promise.all to run all the aggregations in parallel instead of running them sequentially. This is because all the aggregations are independent of each other and can be run in parallel to improve performance. If we had run them sequentially, it would have taken longer to get all the data. 
+    // Explanation:
+    // In a real interview scenario, I would explain it like this:
+    // "I used Promise.all here because all the aggregations I'm running are independent of 
+    // each other. I need to get the total number of resumes, the number of screened resumes, 
+    // the number of error resumes, the average score, the highest score, the lowest score, 
+    // the number of recommendations, the top 10 candidates, and the score distribution. These 
+    // are all separate queries that don't depend on each other, so I can run them in parallel 
+    // to get all the data at once. This improves performance because the total time taken will 
+    // be the time of the slowest query, rather than the sum of all query times."
     const [
       totalResumes,
       screenedResumes,
@@ -228,40 +239,40 @@ async function getJobStats(req, res, next) {
       recommendationBreakdown,
       topCandidates,
       scoreDistribution,
-    ] = await Promise.all([
+    ] = await Promise.all([ // array of promises to be executed in parallel
       // Simple counts from Resume collection
-      Resume.countDocuments({ jobId }),
-      Resume.countDocuments({ jobId, status: "screened" }),
-      Resume.countDocuments({ jobId, status: "error" }),
+      Resume.countDocuments({ jobId }), // total resumes
+      Resume.countDocuments({ jobId, status: "screened" }), // screened resumes
+      Resume.countDocuments({ jobId, status: "error" }), // error resumes
 
       // Aggregate scores for this job from Screening collection
       Screening.aggregate([
-        { $match: { jobId: jobObjectId } },
+        { $match: { jobId: jobObjectId } }, // match job id
         {
           $group: {
-            _id: null,
-            avgScore: { $avg: "$overallScore" },
-            highestScore: { $max: "$overallScore" },
-            lowestScore: { $min: "$overallScore" },
-            totalScreenings: { $sum: 1 },
+            _id: null, // group by null
+            avgScore: { $avg: "$overallScore" }, // calculate average score
+            highestScore: { $max: "$overallScore" }, // calculate highest score
+            lowestScore: { $min: "$overallScore" }, // calculate lowest score
+            totalScreenings: { $sum: 1 }, // count total screenings
           },
         },
       ]),
 
       // Recommendation breakdown for this specific job
       Screening.aggregate([
-        { $match: { jobId: jobObjectId } },
+        { $match: { jobId: jobObjectId } }, // match job id
         {
           $group: {
-            _id: "$recommendation",
-            count: { $sum: 1 },
+            _id: "$recommendation", // group by recommendation
+            count: { $sum: 1 }, // count recommendations
           },
         },
-        { $sort: { count: -1 } },
+        { $sort: { count: -1 } }, // sort by count in descending osrder
       ]),
 
       // Top 10 screened candidates sorted by score (descending)
-      Screening.find({ jobId })
+      Screening.find({ jobId }) // find screenings for this job
         .populate(
           "resumeId",
           "candidateName candidateEmail status uploadedBy createdAt",
@@ -287,17 +298,17 @@ async function getJobStats(req, res, next) {
     ]);
 
     // Flatten scoring aggregation result
-    const scoring = screeningStats[0] || {
-      avgScore: 0,
-      highestScore: 0,
-      lowestScore: 0,
-      totalScreenings: 0,
-    };
+    const scoring = screeningStats[0] || { // if no screenings, return default values
+      avgScore: 0, // default average score
+      highestScore: 0, // default highest score
+      lowestScore: 0, // default lowest score
+      totalScreenings: 0, // default total screenings
+    }; // end of scoring object
 
     // Convert recommendation array → object
     const recommendations = recommendationBreakdown.reduce((acc, item) => {
-      acc[item._id] = item.count;
-      return acc;
+      acc[item._id] = item.count; // add recommendation and count to object
+      return acc; // return object
     }, {});
 
     // Convert $bucket output → { "0-20": 2, "21-40": 5, ... }
@@ -310,56 +321,57 @@ async function getJobStats(req, res, next) {
       41: "41-60",
       61: "61-80",
       81: "81-100",
-    };
+    }; // mapping of bucket _id to label
+
     const scoreBands = scoreDistribution.reduce((acc, bucket) => {
-      const label = bucketIdToLabel[bucket._id];
-      if (label) acc[label] = bucket.count;
-      return acc;
-    }, {});
+      const label = bucketIdToLabel[bucket._id]; // get label from bucket _id
+      if (label) acc[label] = bucket.count; // add bucket and count to object
+      return acc; // return object
+    }, {}); // end of score distribution object
 
     // Pending = total resumes that are not yet screened and not errored
-    const pendingResumes = totalResumes - screenedResumes - errorResumes;
+    const pendingResumes = totalResumes - screenedResumes - errorResumes; // pending = total - screened - error
 
     // Screening rate for this job
     const screeningRate =
-      totalResumes > 0 ? Math.round((screenedResumes / totalResumes) * 100) : 0;
+      totalResumes > 0 ? Math.round((screenedResumes / totalResumes) * 100) : 0; // screening rate = (screened / total) * 100
 
     response(
       res,
       200,
       {
         job: {
-          id: job._id,
-          title: job.title,
-          company: job.company,
-          status: job.status,
-          type: job.type,
-          skills: job.skills,
-          createdAt: job.createdAt,
-        },
+          id: job._id, // job id
+          title: job.title, // job title
+          company: job.company, // company name
+          status: job.status, // job status
+          type: job.type, // job type
+          skills: job.skills, // job skills
+          createdAt: job.createdAt, // job creation date
+        }, // end of job object
         resumes: {
-          total: totalResumes,
-          screened: screenedResumes,
-          pending: pendingResumes,
-          errors: errorResumes,
-          screeningRate,
-        },
+          total: totalResumes, // total resumes
+          screened: screenedResumes, // screened resumes
+          pending: pendingResumes, // pending resumes
+          errors: errorResumes, // error resumes
+          screeningRate, // screening rate
+        }, // end of resumes object
         screening: {
-          totalScreenings: scoring.totalScreenings,
+          totalScreenings: scoring.totalScreenings, // total screenings
           avgScore: scoring.avgScore
             ? Math.round(scoring.avgScore * 10) / 10
-            : 0,
-          highestScore: scoring.highestScore || 0,
-          lowestScore: scoring.lowestScore || 0,
-          byRecommendation: recommendations,
-          scoreDistribution: scoreBands,
-        },
-        topCandidates,
+            : 0, // average score
+          highestScore: scoring.highestScore || 0, // highest score
+          lowestScore: scoring.lowestScore || 0, // lowest score
+          byRecommendation: recommendations, // recommendation breakdown
+          scoreDistribution: scoreBands, // score distribution
+        }, // end of screening object
+        topCandidates, // top candidates
       },
       "Job stats fetched successfully",
     );
-  } catch (err) {
-    next(err);
+  } catch (err) { // catch any errors
+    next(err); // pass error to error handling middleware
   }
 }
 

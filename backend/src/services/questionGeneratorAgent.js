@@ -56,27 +56,27 @@ Aim for a mix: ~40% technical, ~30% behavioral, ~30% situational/experience.`,
 
 // ── LangChain Chain
 const questionChain = questionPrompt
-.pipe(questionModel)
-.pipe(new JsonOutputParser());
+.pipe(questionModel) // Invoke the LangChain chain
+.pipe(new JsonOutputParser()); // End of LangChain chain
 
 // ── Main Function
 async function generateInterviewQuestions(resumeText, jobDescription, screeningResult) {
   // Format screening data for the prompt
-  const score = screeningResult.overallScore ?? "N/A";
-  const matchedSkills = screeningResult.matchedSkills?.join(", ") || "None identified";
-  const missingSkills = screeningResult.missingSkills?.join(", ") || "None identified";
-  const rationale = screeningResult.rationale || screeningResult.strengths || "No additional notes";
+  const score = screeningResult.overallScore ?? "N/A"; // Format screening data for the prompt
+  const matchedSkills = screeningResult.matchedSkills?.join(", ") || "None identified"; // Format screening data for the prompt
+  const missingSkills = screeningResult.missingSkills?.join(", ") || "None identified"; // Format screening data for the prompt
+  const rationale = screeningResult.rationale || screeningResult.strengths || "No additional notes"; // Format screening data for the prompt
 
   let lastError = null;
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
+  for (let attempt = 1; attempt <= 2; attempt++) { // Retry up to 2 times
     try {
-      const parsed = await questionChain.invoke({
-        jobDescription,
-        score,
-        matchedSkills,
-        missingSkills,
-        rationale,
+      const parsed = await questionChain.invoke({ // Invoke the LangChain chain
+        jobDescription, // Format screening data for the prompt
+        score, // Format screening data for the prompt
+        matchedSkills, // Format screening data for the prompt
+        missingSkills, // Format screening data for the prompt
+        rationale, // Format screening data for the prompt
       }); // AI call with formatted prompt
 
       const validation = validateAIOutput(parsed, questionsSchema);

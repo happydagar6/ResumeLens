@@ -58,24 +58,24 @@ Return a JSON object with these exact fields:
 Important: if no bias is found, return an empty flags array and biasScore of 95-100.
 Do NOT invent flags that don't exist in the text.`,
     ],
-]);
+]); // end of prompt template
 
 // ── LangChain Chain ────────────────────────────────────────────────────────────
 // biasModel → JsonOutputParser: forces valid JSON output
 const biasChain = biasPrompt
     .pipe(biasModel)
-    .pipe(new JsonOutputParser());
+    .pipe(new JsonOutputParser()); // end of LangChain chain
 
 // ── Main Function ──────────────────────────────────────────────────────────────
 // jobText: combined description + requirements (we pass both to catch all bias)
 // Returns validated { biasScore, flagCount, flags, summary }
 async function detectBias(jobText) {
-    let lastError = null;
+    let lastError = null; // Store the last error encountered
 
     // 2-attempt retry loop — same pattern as all other agents in this project
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    for (let attempt = 1; attempt <= 2; attempt++) { // Retry up to 2 times
         try {
-            const parsed = await biasChain.invoke({ jobText });
+            const parsed = await biasChain.invoke({ jobText }); // Invoke the LangChain chain
 
             const validation = validateAIOutput(parsed, biasDetectionSchema);
             if (!validation.valid) {
@@ -92,14 +92,13 @@ async function detectBias(jobText) {
             result.flagCount = result.flags.length;
 
             console.log(`[BiasAgent] Score: ${result.biasScore}, Flags: ${result.flagCount}`);
-            return result;
+            return result; // Valid, bias detection data
         } catch (error) {
             console.error(`Bias detection attempt ${attempt} failed:`, error.message);
-            lastError = error;
+            lastError = error; // Store the last error
         }
     }
-
     throw lastError || new CustomError("Bias detection failed after retries", 500);
 }
 
-module.exports = { detectBias };
+module.exports = { detectBias }; // end of module export

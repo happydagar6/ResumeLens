@@ -35,6 +35,8 @@ async function getAdminUsers(req, res, next) {
       ];
     }
 
+    // Why we used Promise.all here ?
+    // We use Promise.all to execute two separate database operations in parallel
     const [users, total] = await Promise.all([
       User.aggregate([
         { $match: orgFilter },
@@ -50,6 +52,7 @@ async function getAdminUsers(req, res, next) {
             as: "_jobs",
           },
         },
+        // calculate jobCount from _jobs array
         {
           $addFields: {
             jobCount: { $size: "$_jobs" },
@@ -63,16 +66,16 @@ async function getAdminUsers(req, res, next) {
           },
         },
       ]),
-      User.countDocuments(orgFilter),
+      User.countDocuments(orgFilter), // second db call - no need for _jobs lookup
     ]);
 
-    response(res, 200, {
-        users,
-        pagination: {
-            page,
-            limit,
-            total,
-            pages: Math.ceil(total / limit),
+    response(res, 200, { // send response
+        users, // list of users
+        pagination: { // pagination info
+            page, // current page
+            limit, // items per page
+            total, // total number of users
+            pages: Math.ceil(total / limit), // total number of pages
         },
     });
   } catch (error) {
@@ -91,23 +94,24 @@ async function getAdminUsers(req, res, next) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function updateUserRole(req, res, next) {
-    try {
+    try { // Wrap the entire controller function in a try-catch block to handle potential errors
         const roleSchema = z.object({
             role: z.enum(["recruiter", "hiring_manager", "admin"]),
-        });
+        }); // define validation schema for role
 
-        const { role } = roleSchema.parse(req.body);
+        const { role } = roleSchema.parse(req.body); // validate the request body
 
         // Safety: admin cannot change their own role
         if (req.params.id === req.user.id) {
             throw new CustomError("You cannot change your own role", 400);
-        }
+        } // If the admin tries to change their own role, throw an error
 
         // FInd the target user - must be in the same organization
         const target = await User.findOne({
             _id: req.params.id,
             organizationId: req.user.organizationId,
-        });
+        }); // find the target user in the same organization
+
         if(!target) throw new CustomError("User not found in your organization", 404);
 
         target.role = role; // Update the role
@@ -137,39 +141,39 @@ async function updateUserRole(req, res, next) {
 async function deactivateUser(req, res, next) {
     try {
         if (req.params.id === req.user.id) {
-            throw new CustomError("You cannot deactivate your own account", 400);
+            throw new CustomError("You cannot deactivate your own account", 400); // If the admin tries to deactivate their own account, throw an error
         }
 
-        const target = await User.findOne({
+        const target = await User.findOne({ // Find the target user in the same organization
             _id: req.params.id,
             organizationId: req.user.organizationId,
-        });
-        if (!target) throw new CustomError("User not found in your organization", 404);
-        if (target.isDeactivated) {
+        }); 
+        if (!target) throw new CustomError("User not found in your organization", 404); // If the user is not found, throw an error
+        if (target.isDeactivated) { // If the user is already deactivated, throw an error
             throw new CustomError("User is already deactivated", 400);
         }
 
-        target.isDeactivated = true;
-        await target.save();
+        target.isDeactivated = true; // soft-deactivate the user
+        await target.save(); // Save the change
 
-        response(res, 200, null, `${target.name} has been deactivated successfully`);
-    } catch (error) {
-        next(error);
-    }
-}
+        response(res, 200, null, `${target.name} has been deactivated successfully`); // send response
+    } catch (error) { // Wrap the entire controller function in a try-catch block to handle potential errors
+        next(error); // Pass the error to the next error handler middleware
+    } // end of catch
+} // end of deactivateUser
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PATCH /api/admin/users/:id/reactivate
 // Reverses a deactivation. Sets isDeactivated: false.
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function reactivateUser(req, res, next) {
+async function reactivateUser(req, res, next) { // Wrap the entire controller function in a try-catch block to handle potential errors
     try {
-        if (req.params.id === req.user.id) {
+        if (req.params.id === req.user.id) { // If the admin tries to reactivate their own account, throw an error
             throw new CustomError("Cannot modify your own account status", 400);
         }
 
-        const target = await User.findOne({
+        const target = await User.findOne({ // Find the target user in the same organization
             _id: req.params.id,
             organizationId: req.user.organizationId,
         });

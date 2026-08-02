@@ -30,16 +30,16 @@ const authMiddleware = require('./middleware/authMiddleware');
 const app = express();
 
 // Trust the reverse proxy (Render) so secure cookies can be set
-app.set('trust proxy', 1);
+app.set('trust proxy', 1); // 1- enable trust proxy: configure the Express application to trust the first proxy (e.g., Render's load balancer).
 
 // Set security HTTP headers
-app.use(helmet());
+app.use(helmet()); // 2- use helmet: applies various security-related middleware (e.g., setting secure HTTP headers, preventing clickjacking).
 
 // Middleware
 app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:3000', credentials: true }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
+app.use(express.json()); // 3- parse JSON request bodies: enables the application to parse JSON-formatted data sent in request bodies.
+app.use(express.urlencoded({ extended: true })); // 4- parse URL-encoded request bodies: allows the application to parse data submitted through HTML forms.
+app.use(cookieParser()); // 5- parse cookies: enables the application to read and parse cookies sent with requests.
 
 // Data sanitization against NoSQL query injection (Custom Recursive Middleware)
 app.use(mongoSanitizeMiddleware);
@@ -47,9 +47,9 @@ app.use(mongoSanitizeMiddleware);
 // Data sanitization against XSS (Custom Recursive Middleware)
 app.use(xssMiddleware);
 
-app.use(requestLogger);
-app.use(rateLimiter);
-app.use("/uploads", express.static("uploads"));
+app.use(requestLogger); // 6- log incoming requests: custom middleware to log details about each incoming HTTP request (e.g., method, URL, timestamp).
+app.use(rateLimiter); // 7- limit request rates: middleware to prevent abuse by limiting the number of requests from a single IP address within a specific time window.
+app.use("/uploads", express.static("uploads")); // 8- serve static files: makes files in the "uploads" directory accessible via HTTP.
 
 // Root route
 app.get("/", (req, res) => {
@@ -73,7 +73,7 @@ app.get("/", (req, res) => {
 // Health check
 app.get("/api/health", (req, res) => {
     res.json({ success: true, message: "ResumeLens API is running" });
-});
+}); // 9- health check: checks if the API is running and responsive.
 
 // Queue health — shows current BullMQ stats
 app.get("/api/health/queue", async (req, res) => {
@@ -93,12 +93,12 @@ app.get("/api/health/queue", async (req, res) => {
 // The server pushes events over this connection whenever something happens
 // (e.g. BullMQ finishes screening a resume).
 app.get("/api/events", authMiddleware, (req, res) => {
-    const userId = req.user.id;
+    const userId = req.user.id; // 10- server-sent events: enables real-time communication between the server and clients by sending events over a persistent HTTP connection.
 
     // These headers tell the browser: "This is a stream, keep the connection open"
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
+    res.setHeader("Content-Type", "text/event-stream"); // 11- event stream: specifies the content type as an event stream, which is a way to send multiple events over a single HTTP connection.
+    res.setHeader("Cache-Control", "no-cache"); // 12- cache control: prevents the browser from caching the events, ensuring that the latest events are always displayed.
+    res.setHeader("Connection", "keep-alive"); // 13- connection: keeps the connection open, allowing the server to send events to the client in real-time.
     res.setHeader("X-Accel-Buffering", "no"); // Important for Nginx reverse proxies
     res.flushHeaders(); // Send headers immediately, don't wait for a body
 
@@ -127,6 +127,7 @@ app.use("/api/users", usersRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use('/api/public', publicRoutes);
+
 // Error handler (must be last)
 app.use(errorHandler);
 

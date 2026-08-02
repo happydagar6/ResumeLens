@@ -10,15 +10,15 @@ const { validateAIOutput } = require("./validationService");
 const { z } = require("zod");
 
 // Validation Schema
-const jdAnalysisSchema = z.object({
-    requiredSkills: z.array(z.string()).default([]),
-    niceToHaveSkills: z.array(z.string()).default([]),
-    experienceLevel: z.enum(["junior", "mid", "senior", "lead"]).default("mid"),
-    keyResponsibilities: z.array(z.string()).default([]),
-    qualifications: z.array(z.string()).default([]),
-    roleType: z.string().optional(),
-    industry: z.string().optional(),
-});
+const jdAnalysisSchema = z.object({ // Zod schema for validating AI-generated job description analysis
+    requiredSkills: z.array(z.string()).default([]), // Array of required skills
+    niceToHaveSkills: z.array(z.string()).default([]), // Array of nice-to-have skills
+    experienceLevel: z.enum(["junior", "mid", "senior", "lead"]).default("mid"), // Expected experience level
+    keyResponsibilities: z.array(z.string()).default([]), // Array of key responsibilities
+    qualifications: z.array(z.string()).default([]), // Array of qualifications
+    roleType: z.string().optional(), // Optional role type
+    industry: z.string().optional(), // Optional industry
+}); // End of Zod schema
 
 // ── Prompt Template ────────────────────────────────────────────────────────
 const jdPrompt = ChatPromptTemplate.fromMessages([
@@ -46,24 +46,23 @@ Return a JSON object with these exact fields:
 - roleType: string — the general role category (e.g. "Frontend Developer", "Data Scientist")
 - industry: string — the industry or domain if mentioned`,
     ],
-]);
-
+]); // End of prompt template
 
 // LangChain Chain
 const jdChain = jdPrompt
     .pipe(analyzerModel)
-    .pipe(new JsonOutputParser());
+    .pipe(new JsonOutputParser()); // End of LangChain chain
 
 // ── Agent Function ────────────────────────────────────────────────────────
 async function analyzeJD(jobDescription) {
-    let lastError = null;
+    let lastError = null; // Store the last error encountered
 
-    for(let attempt = 1; attempt <= 2; attempt++) {
+    for(let attempt = 1; attempt <= 2; attempt++) { // Retry up to 2 times
         try {
-            const parsed = await jdChain.invoke({ jobDescription });
+            const parsed = await jdChain.invoke({ jobDescription }); // Invoke the LangChain chain
 
-            const validation = validateAIOutput(parsed, jdAnalysisSchema);
-             if (!validation.valid) {
+            const validation = validateAIOutput(parsed, jdAnalysisSchema); // Validate the AI's output
+             if (!validation.valid) { // If validation fails
                 console.error(
                     `JD analysis validation failed (attempt ${attempt}):`,
                     validation.errors
@@ -72,13 +71,13 @@ async function analyzeJD(jobDescription) {
                 continue;
             }
 
-            return validation.data;
+            return validation.data; // Valid, structured JD analysis data
         } catch (error) {
             console.error(`JD analysis failed (attempt ${attempt}):`, error.message);
-            lastError = error;
+            lastError = error; // Store the last error
         }
     }
     throw lastError || new CustomError("JD analysis failed after multiple attempts", 500);
 };
 
-module.exports = { analyzeJD };
+module.exports = { analyzeJD }; // End of module export

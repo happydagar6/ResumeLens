@@ -54,10 +54,10 @@ const chatChain = chatPrompt
 // ── Helper: Convert Frontend History Format → LangChain Message Objects ──────
 // The frontend sends: [{ role: "user", content: "..." }, { role: "assistant", content: "..." }]
 // LangChain needs: [new HumanMessage("..."), new AIMessage("...")]
-function convertHistory(history = []) {
-    return history.map((msg) => {
-        if (msg.role === "user") return new HumanMessage(msg.content);
-        if (msg.role === "assistant") return new AIMessage(msg.content);
+function convertHistory(history = []) { // convert frontend history format to LangChain message objects
+    return history.map((msg) => { // map over the history
+        if (msg.role === "user") return new HumanMessage(msg.content); // if user message, return new HumanMessage
+        if (msg.role === "assistant") return new AIMessage(msg.content); // if assistant message, return new AIMessage
         // Skip any unknown message types safely
         return null;
     }).filter(Boolean); // Remove nulls
@@ -70,11 +70,11 @@ function convertHistory(history = []) {
 // history: array of { role, content } objects from the frontend
 // userQuestion: string — the user's latest message
 async function chatAboutCandidate({ jobTitle, jobDescription, resumeText, history, userQuestion }) {
-    if (!userQuestion?.trim()) {
-        throw new CustomError("Question cannot be empty", 400);
+    if (!userQuestion?.trim()) { // validate user question
+        throw new CustomError("Question cannot be empty", 400); // throw error if question is empty
     }
 
-    try {
+    try { // Handle errors
         // Convert the simple frontend history format to LangChain message objects
         const chatHistory = convertHistory(history);
 
@@ -95,4 +95,4 @@ async function chatAboutCandidate({ jobTitle, jobDescription, resumeText, histor
     }
 }
 
-module.exports = { chatAboutCandidate };
+module.exports = { chatAboutCandidate }; // end of module export

@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 // Query Keys
 export const RESUME_KEYS = {
-    byJob: (jobId) => ["resumes", "byJob", jobId],
+    byJob: (jobId) => ["resumes", "byJob", jobId], // What is this line doing, make me understand: it returns an array of keys for the query
 };
 
 // ── Queries ───────────────────────────────────────────────────────────────────
@@ -12,16 +12,16 @@ export const RESUME_KEYS = {
 // GET /api/resumes/job/:jobId — all resumes uploaded for a specific job
 export function useResumesByJob(jobId) {
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: RESUME_KEYS.byJob(jobId),
-    queryFn: () => api.get(`/resumes/job/${jobId}`),
-    enabled: Boolean(jobId),
+    queryKey: RESUME_KEYS.byJob(jobId), // returns an array of keys for the query
+    queryFn: () => api.get(`/resumes/job/${jobId}`), // function that fetches the data
+    enabled: Boolean(jobId), // only run the query if jobId is truthy
   });
 
   return {
-    resumes: data?.data?.resumes ?? [],
-    isLoading,
-    isError,
-    error,
+    resumes: data?.data?.resumes ?? [], // array of resumes, empty array if no data
+    isLoading, // boolean indicating if data is loading
+    isError, // boolean indicating if there was an error
+    error, // error object if there was an error
   };
 }
 

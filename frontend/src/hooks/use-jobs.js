@@ -156,9 +156,9 @@ export function useAnalyzeBias(jobId) {
 // ── POST /api/jobs/generate-jd ───────────────────────────────────────────────
 export function useGenerateJD() {
   return useMutation({
-    mutationFn: (data) => api.post("/jobs/generate-jd", data),
+    mutationFn: (data) => api.post("/jobs/generate-jd", data), // generate job description
     onError: (err) => {
-      toast.error(err.message || "Failed to generate job description");
+      toast.error(err.message || "Failed to generate job description"); // show error message
     },
   });
 }

@@ -8,13 +8,13 @@ export function useUpdateProfile() {
   const { checkAuth } = useAuth();  // re-fetch the user after update
 
   return useMutation({
-    mutationFn: (data) => api.put("/auth/profile", data),
+    mutationFn: (data) => api.put("/auth/profile", data), // update user profile
     onSuccess: async () => {
       await checkAuth(); // re-sync user state in AuthContext
-      toast.success("Profile updated successfully");
+      toast.success("Profile updated successfully"); // show success message
     },
     onError: (err) => {
-      toast.error(err.message || "Failed to update profile");
+      toast.error(err.message || "Failed to update profile"); // show error message
     },
   });
 }
@@ -22,9 +22,9 @@ export function useUpdateProfile() {
 // PUT /api/auth/password — change password
 export function useUpdatePassword() {
   return useMutation({
-    mutationFn: (data) => api.put("/auth/password", data),
+    mutationFn: (data) => api.put("/auth/password", data), // change password
     onSuccess: () => {
-      toast.success("Password changed successfully");
+      toast.success("Password changed successfully"); // show success message
     },
     onError: (err) => {
       toast.error(err.message || "Failed to change password");

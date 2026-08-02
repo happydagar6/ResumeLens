@@ -384,40 +384,43 @@ async function getJobStats(req, res, next) {
 // ─────────────────────────────────────────────────────────────────────────────
 async function getJobAnalytics(req, res, next) {
   try {
-    const jobId = req.params.id || req.params.jobId;
+    const jobId = req.params.id || req.params.jobId; // get job id from request parameters
 
-    if (!mongoose.Types.ObjectId.isValid(jobId)) {
-      throw new CustomError("Invalid job ID", 400);
+    if (!mongoose.Types.ObjectId.isValid(jobId)) { // check if job id is valid
+      throw new CustomError("Invalid job ID", 400); // throw error if job id is invalid
     }
 
     const job = await Job.findById(jobId).select(
-      "title company createdBy assignedTo",
+      "title company createdBy assignedTo", // select job details
     );
-    if (!job) throw new CustomError("Job not found", 404);
+    if (!job) throw new CustomError("Job not found", 404); // throw error if job not found
 
     // Access check: creator, assigned HM, or admin
-    const isOwner = job.createdBy?.toString() === req.user.id;
+    const isOwner = job.createdBy?.toString() === req.user.id; // check if user is creator
     const isAssigned = job.assignedTo?.some(
-      (uid) => uid.toString() === req.user.id,
+      (uid) => uid.toString() === req.user.id, // check if user is assigned
     );
-    if (req.user.role !== "admin" && !isOwner && !isAssigned) {
-      throw new CustomError("Access denied", 403);
+    if (req.user.role !== "admin" && !isOwner && !isAssigned) { // check if user is admin
+      throw new CustomError("Access denied", 403); // throw error if access denied
     }
 
-    const jobObjectId = new mongoose.Types.ObjectId(jobId);
+    const jobObjectId = new mongoose.Types.ObjectId(jobId); // convert job id to object id
 
     // Run all counts in parallel
+    // Why we used Promise.all here ?
+    // We use Promise.all to execute multiple database queries in parallel instead of sequentially.
+    // This significantly speeds up the response time, especially when there are many queries to run.
     const [uploaded, parsed, screened, shortlisted, offered, rejected, onHold] =
       await Promise.all([
-        Resume.countDocuments({ jobId }),
+        Resume.countDocuments({ jobId }), // count uploaded resumes
         Resume.countDocuments({
           jobId,
-          status: { $in: ["parsed", "screening", "screened"] },
+          status: { $in: ["parsed", "screening", "screened"] }, // count resumes that are parsed, screening or screened
         }),
-        Resume.countDocuments({ jobId, status: "screened" }),
+        Resume.countDocuments({ jobId, status: "screened" }), // count screened resumes
         Screening.countDocuments({
           jobId: jobObjectId,
-          hiringManagerDecision: "shortlisted",
+          hiringManagerDecision: "shortlisted", // count shortlisted resumes
         }),
         Screening.countDocuments({
           jobId: jobObjectId,
@@ -431,7 +434,7 @@ async function getJobAnalytics(req, res, next) {
           jobId: jobObjectId,
           hiringManagerDecision: "on_hold",
         }),
-      ]);
+      ]); 
 
     // Build the ordered funnel stages with drop-off percentage from previous stage
     const stages = [
@@ -469,7 +472,6 @@ async function getJobAnalytics(req, res, next) {
 // Returns the 20 most recent actions (screenings + decisions) for the current
 // user's scope, newest first. Admins see org-wide activity.
 // ─────────────────────────────────────────────────────────────────────────────
-
 async function getActivityFeed(req, res, next) {
   try {
     const isAdmin = req.user.role === "admin";

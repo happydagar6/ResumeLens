@@ -14,7 +14,7 @@ import { RESUME_KEYS } from "./use-resume";
 import { SCREENING_KEYS } from "./use-screening";
 
 export function useSSE(isAuthenticated = false) {
-    const queryClient = useQueryClient();
+    const queryClient = useQueryClient(); // instance of React Query client
 
     useEffect(() => {
         // Only connect if the user is logged in — no point opening a connection for guests

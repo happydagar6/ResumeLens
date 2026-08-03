@@ -73,7 +73,14 @@ async function signup(req, res, next) {
             // Recruiter creates a new org
             const slug = company
             ? company.toLowerCase().replace(/\s+/g, "-") + "-" + Date.now()
-            : "org-" + Date.now();
+            : "org-" + Date.now(); // creates slug for org. What is slug ?
+            // slug is a human-readable, unique identifier used in URLs.
+            // Example: "My Company" -> "my-company"  
+            // "AI Solutions" -> "ai-solutions"
+            // here Date.now() is used to make the slug unique if two companies have 
+            // same name.
+            // What is createBy ?
+            // createBy is the user who created the org
 
             const org = new Organization({
                 name: company || "My Organization",
@@ -81,9 +88,9 @@ async function signup(req, res, next) {
                 createdBy: user._id,
                 inviteCode: crypto.randomBytes(16).toString("hex"),
             });
-            await org.save();
-            user.organizationId = org._id;
-            await user.save();
+            await org.save(); // wait for org to be saved before proceeding
+            user.organizationId = org._id; // set org id to user.
+            await user.save(); // wait for user to be saved before proceeding
         } else if (role === "hiring_manager") {
             // HM joins via invite code
             const { inviteCode } = req.body;
@@ -218,11 +225,13 @@ async function updateProfile(req, res, next) {
     }
 }
 
+
+// update password
 async function updatePassword(req, res, next) {
     try {
         const passwordSchema = z.object({
-            currentPassword: z.string().min(6),
-            newPassword: z.string().min(6),
+            currentPassword: z.string().min(6), // validate current password
+            newPassword: z.string().min(6), // validate new password
             newPassword: z.string().min(6, "New password must be at least 6 characters"),
         });
         const { currentPassword, newPassword } = passwordSchema.parse(req.body); // Validate input
@@ -269,7 +278,7 @@ async function refreshAccessToken(req, res, next) {
     try {
         const refreshToken = req.cookies?.refreshToken;
         if (!refreshToken) {
-            throw new CustomError("No refresh token provided", 401);
+            throw new CustomError("No refresh token provided", 401); // checks for refresh token
         }
 
         // Verify the refresh token
@@ -278,34 +287,34 @@ async function refreshAccessToken(req, res, next) {
             decoded = jwt.verify(
                 refreshToken,
                 process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET
-            );
+            ); // verifies refresh token
         } catch (err) {
-            throw new CustomError("Invalid or expired refresh token — please log in again", 401);
+            throw new CustomError("Invalid or expired refresh token — please log in again", 401); // checks if refresh token is valid
         }
 
         // Safety: ensure this is actually a refresh token, not an access token
         if (decoded.type !== "refresh") {
-            throw new CustomError("Invalid token type", 401);
+            throw new CustomError("Invalid token type", 401); // checks if token type is refresh
         }
 
         // Fetch the user to get their current role (role could have changed since token was issued)
-        const user = await User.findById(decoded.id).select("role isDeactivated");
-        if (!user) throw new CustomError("User not found", 401);
+        const user = await User.findById(decoded.id).select("role isDeactivated"); // finds user by id
+        if (!user) throw new CustomError("User not found", 401); // checks if user is found
 
         // Block deactivated users from refreshing
         if (user.isDeactivated) {
-            throw new CustomError("Your account has been deactivated. Contact your admin.", 403);
+            throw new CustomError("Your account has been deactivated. Contact your admin.", 403); // checks if user is deactivated
         }
 
         // Issue only a new accessToken — do NOT re-issue the refresh token
-        const newAccessToken = generateAccessToken(decoded.id, user.role);
+        const newAccessToken = generateAccessToken(decoded.id, user.role); // generates new access token
 
         res.cookie("token", newAccessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
             maxAge: 15 * 60 * 1000, // 15 minutes
-        });
+        }); // sets new access token cookie
 
         response(res, 200, null, "Token refreshed successfully");
     } catch (err) {
@@ -396,5 +405,5 @@ async function resetPassword(req, res, next) {
         next(err);
     }
 }
-
+ 
 module.exports = { signup, login, logout, me, updateProfile, updatePassword, getInviteCode, getTeamMembers, refreshAccessToken, forgotPassword, resetPassword };

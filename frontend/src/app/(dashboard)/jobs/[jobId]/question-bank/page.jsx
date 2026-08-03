@@ -27,7 +27,7 @@ export default function QuestionBankPage() {
     const { jobId } = useParams();
     const [activeTab, setActiveTab] = useState("all");
 
-    const { job, isLoading: jobLoading }   = useJob(jobId);
+    const { job, isLoading: jobLoading } = useJob(jobId);
     const { bank, isLoading: bankLoading } = useQuestionBank(jobId);
     const toggleMutation = useToggleUsed(jobId);
 
@@ -45,6 +45,11 @@ export default function QuestionBankPage() {
             score: doc.screeningId?.overallScore ?? null,
         }))
     );
+
+    // What does this .flatMap() do ? 
+    // .flatMap() is a method that is used to flatten an array of arrays into a single array
+    // In this case, it is used to flatten an array of documents into a single array of 
+    // questions with metadata attached.
 
     const filtered =
         activeTab === "all"

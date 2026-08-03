@@ -49,16 +49,16 @@ async function createJob(req, res, next) {
 
 async function getJobs(req, res, next) {
     try {
-        let filter;
+        let filter; // Filters based on user role.
         if (req.user.role === "admin") {
             // Admins see every job in the system
             filter = { organizationId: req.user.organizationId }; // But still filter by organization
         } else if (req.user.role === "hiring_manager") {
             // Hiring managers only see jobs they have been assigned to
-            filter = { assignedTo: req.user.id };
+            filter = { assignedTo: req.user.id }; // Hiring manager is assigned to the job
         } else {
             // Recruiters see only the jobs they created
-            filter = { createdBy: req.user.id };
+            filter = { createdBy: req.user.id }; // Creator of the job
         }
 
         // Search & Filtering
@@ -68,10 +68,17 @@ async function getJobs(req, res, next) {
         if (type) filter.type = type; // Filter by job type
 
         if (search) {
+            // What is the meaning of filter.$or = [{title: { $regex: search, $options: "i" }},
+            // {company: { $regex: search, $options: "i" }},
+            // {description: { $regex: search, $options: "i" }}];
+            // This code means if search matches any of the following fields, then return the job
+            // {title: { $regex: search, $options: "i" }} means if search matches any of the following fields, then return the job
+            // {company: { $regex: search, $options: "i" }} means if search matches any of the following fields, then return the job
+            // {description: { $regex: search, $options: "i" }} means if search matches any of the following fields, then return the job
             filter.$or = [
-                {title: { $regex: search, $options: "i" }},
-                {company: { $regex: search, $options: "i" }},
-                {description: { $regex: search, $options: "i" }},
+                { title: { $regex: search, $options: "i" } },
+                { company: { $regex: search, $options: "i" } },
+                { description: { $regex: search, $options: "i" } },
             ];
         }
 
@@ -97,12 +104,22 @@ async function getJobs(req, res, next) {
 
         const [jobs, total] = await Promise.all([
             Job.aggregate([
-                { $match: aggregateFilter },
-                { $sort: sortOption },
-                { $skip: skip },
-                { $limit: limit },
+                { $match: aggregateFilter }, // Match documents that satisfy the aggregateFilter
+                { $sort: sortOption }, // Sort the documents by sortOption
+                { $skip: skip }, // Skip the specified number of documents
+                { $limit: limit }, // Limit the number of documents
                 // Join resumes to count uploads
                 {
+                    // What does this $lookup ?
+                    // $lookup is used to perform a left outer join to an another collection in the same database
+                    // What is the meaning of from: "resumes" ?
+                    // from: "resumes" means the collection to join with
+                    // What is the meaning of localField: "_id" ?
+                    // localField: "_id" means the field in the input documents (the job documents)
+                    // What is the meaning of foreignField: "jobId" ?
+                    // foreignField: "jobId" means the field in the documents of the from collection (the resume documents)
+                    // What is the meaning of as: "_resumes" ?
+                    // as: "_resumes" means the name of the new array field to add to the input documents
                     $lookup: {
                         from: "resumes",
                         localField: "_id",

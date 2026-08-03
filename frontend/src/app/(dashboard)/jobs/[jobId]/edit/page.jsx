@@ -10,7 +10,7 @@ import Link from "next/link";
 
 export default function EditJobPage() {
   const { jobId } = useParams();
-  const { job, isLoading } = useJob(jobId);
+  const { job, isLoading } = useJob(jobId); 
   const updateMutation = useUpdateJob(jobId);
 
   if (isLoading) return <LoadingSpinner />;

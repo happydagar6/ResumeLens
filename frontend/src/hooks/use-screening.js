@@ -3,121 +3,113 @@ import { api } from "../lib/api-client";
 import { toast } from "sonner";
 import { RESUME_KEYS } from "../hooks/use-resume";
 
-// ── Query Keys ────────────────────────────────────────────────────────────────
+// ── Query Keys Factory ────────────────────────────────────────────────────────
+// Centralised object defining cache labels for screening queries so React Query manages cache cleanly.
 export const SCREENING_KEYS = {
-  byJob: (jobId) => ["screenings", "job", jobId],
-  detail: (screeningId) => ["screenings", screeningId],
+  byJob: (jobId) => ["screenings", "job", jobId],        // Dynamic cache key for all screening reports under a specific job
+  detail: (screeningId) => ["screenings", screeningId],  // Dynamic cache key for a single candidate screening detail
 };
 
-// ── Queries ───────────────────────────────────────────────────────────────────
+// ── Queries (GET Data) ────────────────────────────────────────────────────────
 
-// GET /api/screening/job/:jobId — all screening results for a job
+// GET /api/screening/job/:jobId — fetches all screening evaluation reports for a job
 export function useScreeningsByJob(jobId) {
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: SCREENING_KEYS.byJob(jobId),
-    queryFn: () => api.get(`/screening/job/${jobId}`),
-    enabled: Boolean(jobId),
+    queryKey: SCREENING_KEYS.byJob(jobId),               // Unique cache key for this job's screenings
+    queryFn: () => api.get(`/screening/job/${jobId}`),   // API call function that fetches screening reports
+    enabled: Boolean(jobId),                              // Only run query if jobId is truthy (prevents firing when undefined)
   });
 
   return {
-    screenings: data?.data?.screenings ?? [],
-    isLoading,
-    isError,
-    error,
+    screenings: data?.data?.screenings ?? [],             // Array of screening objects, defaults to [] while loading
+    isLoading,                                            // True while HTTP request is loading
+    isError,                                              // True if HTTP request failed
+    error,                                                // Error object
   };
 }
 
-// GET /api/screening/:id — single screening detail
+// GET /api/screening/:id — fetches detailed AI evaluation report for a single candidate
 // Backend populates resumeId (candidateName, email) and jobId (title, company)
 export function useScreening(screeningId) {
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: SCREENING_KEYS.detail(screeningId),
-    queryFn: () => api.get(`/screening/${screeningId}`),
-    enabled: Boolean(screeningId),
+    queryKey: SCREENING_KEYS.detail(screeningId),         // Unique cache key for this single screening report
+    queryFn: () => api.get(`/screening/${screeningId}`),  // Fetch single screening by ID
+    enabled: Boolean(screeningId),                        // Only run query if screeningId exists
   });
 
   return {
-    screening: data?.data?.screening ?? null,
-    isLoading,
-    isError,
-    error,
+    screening: data?.data?.screening ?? null,             // Returns single screening report object or null
+    isLoading,                                            // True while loading
+    isError,                                              // True if error occurred
+    error,                                                // Error object
   };
 }
 
-// ── Mutations ─────────────────────────────────────────────────────────────────
+// ── Mutations (POST / PUT / DELETE Actions) ───────────────────────────────────
 
-// POST /api/screening — run the AI pipeline on a resume
-// Caller passes { resumeId, jobId } — jobId is used only for cache invalidation
+// POST /api/pipeline/screen — enqueues a single candidate resume for AI screening via BullMQ
 export function useRunScreening() {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient(); // Access React Query cache manager
 
   return useMutation({
-    mutationFn: ({ resumeId }) => api.post("/pipeline/screen", { resumeId }),
+    mutationFn: ({ resumeId }) => api.post("/pipeline/screen", { resumeId }), // API call returning HTTP 202 Accepted
     onSuccess: (_, variables) => {
-      // The API returns 202 — screening is queued, not done yet.
-      // Invalidate resume list so status shows "screening"
+      // 1. Invalidate resume list cache so resume status flips to "screening..." on the UI
       queryClient.invalidateQueries({ queryKey: RESUME_KEYS.byJob(variables.jobId) });
+      // 2. Show green notification toast
       toast.success("Screening queued — processing will begin shortly");
-      // NOTE: The component using this hook should now enable usePipelineStatus
-      // polling to track when it completes.
     },
     onError: (err) => {
-      toast.error(err.message || "Screening failed");
+      toast.error(err.message || "Screening failed"); // Show red error toast
     },
   });
 }
 
-// ── PUT /api/screening/:id/decision ───────────────────────────────────────────
-// Records the hiring manager's manual decision on a candidate.
-// Caller: useMakeDecision().mutate({ screeningId, decision, notes?, jobId? })
+// PUT /api/screening/:id/decision — saves hiring manager's decision ("shortlisted", "rejected", "interview")
 export function useMakeDecision() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({ screeningId, decision, notes = "" }) =>
-      api.put(`/screening/${screeningId}/decision`, { decision, notes }),
+      api.put(`/screening/${screeningId}/decision`, { decision, notes }), // API call to record hiring decision
     onSuccess: (_, variables) => {
-      // Refresh the individual screening detail
+      // 1. Refresh individual screening detail cache
       queryClient.invalidateQueries({
         queryKey: SCREENING_KEYS.detail(variables.screeningId),
       });
-      // Refresh the job's full candidate list so the decision shows in the table
+      // 2. Refresh full job candidate list cache so decision badge updates in candidate table
       if (variables.jobId) {
         queryClient.invalidateQueries({
           queryKey: SCREENING_KEYS.byJob(variables.jobId),
         });
       }
-      toast.success("Decision saved successfully");
+      toast.success("Decision saved successfully"); // Show success toast
     },
     onError: (err) => {
-      toast.error(err.message || "Failed to save decision");
+      toast.error(err.message || "Failed to save decision"); // Show error toast
     },
   });
 }
 
-// ── POST /api/screening/:id/generate-email ────────────────────────────────────
-// Calls the AI to draft an email for the candidate.
-// Returns { subject, body } via mutation.data after success.
+// POST /api/screening/:id/generate-email — calls AI agent to draft candidate acceptance or rejection email
 export function useGenerateEmail() {
   return useMutation({
     mutationFn: ({ screeningId, emailType }) =>
-      api.post(`/screening/${screeningId}/generate-email`, { emailType }),
+      api.post(`/screening/${screeningId}/generate-email`, { emailType }), // API call generating AI email prose
     onError: (err) => {
-      toast.error(err.message || "Failed to generate email draft");
+      toast.error(err.message || "Failed to generate email draft"); // Show error toast
     },
   });
 }
 
-// ── POST /api/pipeline/batch-screen ───────────────────────────────────────────
-// Queues all parsed resumes for a job into BullMQ.
-// On success: invalidates resume list (status changes to screening).
-
+// POST /api/pipeline/batch-screen — enqueues all unscreened resumes for a job into BullMQ at once
 export function useBulkScreening() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ jobId }) => api.post("/pipeline/batch-screen", { jobId }),
+    mutationFn: ({ jobId }) => api.post("/pipeline/batch-screen", { jobId }), // API call for batch screening
     onSuccess: (data, variables) => {
+      // Invalidate resume list cache so status changes to "screening..." for all candidate cards
       queryClient.invalidateQueries({ queryKey: RESUME_KEYS.byJob(variables.jobId) });
       toast.success(data?.message || "Bulk screening queued successfully");
     },
@@ -127,60 +119,60 @@ export function useBulkScreening() {
   })
 }
 
-// ── Poll pipeline status until screening completes ────────────────────────────
-// Used after triggering a screen — polls every 3s until resume.status is final.
+// ── Polling Hook (Pipeline Status Tracker) ────────────────────────────────────
+
+// GET /api/pipeline/status/:resumeId — polls screening status every 3s until completion
 export function usePipelineStatus(resumeId, enabled = false) {
     const { data, isLoading } = useQuery({
-        queryKey: ["pipeline-status", resumeId],
-        queryFn: () => api.get(`/pipeline/status/${resumeId}`),
-        enabled: Boolean(resumeId) && enabled,
+        queryKey: ["pipeline-status", resumeId],                     // Cache key for pipeline status polling
+        queryFn: () => api.get(`/pipeline/status/${resumeId}`),       // Polling endpoint
+        enabled: Boolean(resumeId) && enabled,                         // Only run polling when resumeId and enabled flag are true
         refetchInterval: (query) => {
-            // Stop polling once the resume reaches a terminal state
+            // Dynamic polling: Stop polling when resume reaches terminal state ("screened" or "error")
             const status = query.state.data?.data?.status;
-            if (status === "screened" || status === "error") return false;
-            return 3000; // poll every 3 seconds
+            if (status === "screened" || status === "error") return false; // Stop polling!
+            return 3000;                                                   // Poll every 3 seconds (3000ms)
         },
     });
 
     return {
-        pipelineData: data?.data ?? null,
-        isPolling: isLoading,
+        pipelineData: data?.data ?? null,                             // Pipeline status data object
+        isPolling: isLoading,                                         // True while polling is active
     };
 }
 
-// ── POST /api/pipeline/rescreen ───────────────────────────────────────────────
-// Deletes old screening + questions, re-runs the AI pipeline.
-// Caller: useRescreen().mutate({ resumeId, screeningId, jobId })
+// ── Re-Screening Mutation ─────────────────────────────────────────────────────
+
+// POST /api/pipeline/rescreen — clears old screening evaluation and re-runs AI pipeline
 export function useRescreen() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: ({ resumeId }) => api.post("/pipeline/rescreen", { resumeId }),
+        mutationFn: ({ resumeId }) => api.post("/pipeline/rescreen", { resumeId }), // API call to re-run AI pipeline
         onSuccess: (_, variables) => {
-            // Refresh both resume list + screening list
+            // Refresh both resume list cache and screening list cache
             queryClient.invalidateQueries({ queryKey: RESUME_KEYS.byJob(variables.jobId) });
             queryClient.invalidateQueries({ queryKey: SCREENING_KEYS.byJob(variables.jobId) });
-            // Refresh the individual screening detail (in case user is on that page)
+            // Refresh individual screening detail cache if viewer is on that page
             if (variables.screeningId) {
                 queryClient.invalidateQueries({ queryKey: SCREENING_KEYS.detail(variables.screeningId) });
             }
-            toast.success("Resume re-screened successfully!");
+            toast.success("Resume re-screened successfully!"); // Show success toast
         },
         onError: (err) => {
-            toast.error(err.message || "Re-screening failed");
+            toast.error(err.message || "Re-screening failed"); // Show error toast
         },
     });
 }
 
-// ── DELETE /api/screening/:id ─────────────────────────────────────────────────
-// Deletes a screening directly (useful for orphaned screenings)
+// DELETE /api/screening/:id — deletes a candidate screening record
 export function useDeleteScreening() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (screeningId) => api.delete(`/screening/${screeningId}`),
+        mutationFn: (screeningId) => api.delete(`/screening/${screeningId}`), // API request to delete screening
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["screenings"] });
+            queryClient.invalidateQueries({ queryKey: ["screenings"] }); // Invalidate all screenings caches
             toast.success("Screening deleted successfully");
         },
         onError: (err) => {
@@ -189,27 +181,28 @@ export function useDeleteScreening() {
     });
 }
 
+// ── AI Candidate Chat Assistant Mutation ──────────────────────────────────────
 
-// ── POST /api/screening/:id/chat ──────────────────────────────────────────────
-// Sends a question + full history to the backend and returns the AI's answer.
-// This is a useMutation (not useQuery) because it's triggered on user action.
-// We do NOT use react-query cache here — chat is purely transient in-memory state.
+// POST /api/screening/:id/chat — sends recruiter/candidate questions to AI agent and returns AI answer
 export function useCandidateChat(screeningId) {
   return useMutation({
     mutationFn: ({ userQuestion, history }) =>
-      api.post(`/screening/${screeningId}/chat`, { userQuestion, history }),
-    // No onSuccess cache invalidation needed — we update local state in the component
+      api.post(`/screening/${screeningId}/chat`, { userQuestion, history }), // API call for candidate chat assistant
+    // No query cache invalidation needed — chat messages are stored in local React component state
     onError: (err) => {
       toast.error(err.message || "Chat failed. Please try again.");
     },
   });
 }
 
-// ── GET /api/screening/:id/audit-logs ─────────────────────────────────────────
+// ── Audit Logs Query ──────────────────────────────────────────────────────────
+
+// GET /api/screening/:id/audit-logs — fetches chronological history of candidate actions
 export function useAuditLogs(resumeId) {
   return useQuery({
-    queryKey: ["audit-logs", resumeId],
-    queryFn: () => api.get(`/screening/${resumeId}/audit-logs`),
-    enabled: !!resumeId,
+    queryKey: ["audit-logs", resumeId],                            // Cache key for candidate audit logs
+    queryFn: () => api.get(`/screening/${resumeId}/audit-logs`),   // API call to fetch audit timeline
+    enabled: !!resumeId,                                            // Only run query if resumeId exists
   });
 }
+

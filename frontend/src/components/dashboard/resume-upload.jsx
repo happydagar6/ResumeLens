@@ -10,7 +10,7 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { api } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ import {
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useProgressStore } from "@/store/progress-store";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const MAX_FILES = 50;          // Maximum number of files in one batch
@@ -61,19 +62,17 @@ const STATUS_ICONS = {
 //   onScreenAll — optional callback to trigger bulk AI screening after upload
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ResumeUpload({ jobId, onUploaded, onScreenAll, isScreeningAll }) {
-
-  // queue: array of file items. Each item looks like:
-  // { file: File, name: string, status: "pending"|"uploading"|"done"|"error", error: string|null }
-  const [queue, setQueue] = useState([]);
-
-  // isUploading: true while the uploadAll function is running
-  const [isUploading, setIsUploading] = useState(false);
-
-  // uploadedCount: how many files have finished uploading so far (for live counter + progress bar)
-  const [uploadedCount, setUploadedCount] = useState(0);
-
-  // allDone: true after uploadAll completes — triggers the "Screen All" prompt
-  const [allDone, setAllDone] = useState(false);
+  const {
+    queue,
+    setQueue,
+    isUploading,
+    uploadedCount,
+    setUploadedCount,
+    allDone,
+    setAllDone,
+    removePending,
+    uploadAll
+  } = useProgressStore();
 
   // ── Drop handler ─────────────────────────────────────────────────────────
   // Called by react-dropzone when the user drops or selects files
@@ -107,10 +106,10 @@ export default function ResumeUpload({ jobId, onUploaded, onScreenAll, isScreeni
     }));
 
     if (filesToAdd.length > 0) {
-      setQueue((prev) => [...prev, ...filesToAdd]);
+      setQueue([...queue, ...filesToAdd]);
       setAllDone(false); // reset the "done" state when new files are added
     }
-  }, [queue]); // queue is a dependency because we check queue.length
+  }, [queue, setQueue, setAllDone]);
 
   // ── react-dropzone config ─────────────────────────────────────────────────
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -120,110 +119,16 @@ export default function ResumeUpload({ jobId, onUploaded, onScreenAll, isScreeni
     maxFiles: MAX_FILES,                     // soft limit (we enforce it in onDrop too)
   });
 
-  // ── Remove a single pending file from the queue ───────────────────────────
-  function removePending(index) {
-    setQueue((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  // ── Update a single item in the queue by index ────────────────────────────
-  // patch: partial object to merge, e.g. { status: "done" }
-  function updateItem(index, patch) {
-    setQueue((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, ...patch } : item))
-    );
-  }
-
   // ── Core Upload Function ──────────────────────────────────────────────────
-  // Uploads all "pending" files in parallel batches of UPLOAD_CONCURRENCY (5).
-  // This is the key upgrade from the old sequential (one-at-a-time) approach.
-  async function uploadAll() {
-    // Find the indexes of all files that are still in "pending" state
-    const pendingIndexes = queue
-      .map((item, i) => (item.status === "pending" ? i : null))
-      .filter((i) => i !== null);
-
-    if (pendingIndexes.length === 0) return;
-
-    setIsUploading(true);
-    setUploadedCount(0); // reset counter at start
-    let successCount = 0;
-
-    // ── Process in parallel batches of 5 ─────────────────────────────────
-    // Example: 13 files → Batch 1: files 0-4, Batch 2: files 5-9, Batch 3: files 10-12
-    for (let i = 0; i < pendingIndexes.length; i += UPLOAD_CONCURRENCY) {
-      // Grab the next batch of up to 5 pending file indexes
-      const batch = pendingIndexes.slice(i, i + UPLOAD_CONCURRENCY);
-
-      // Mark all files in this batch as "uploading" immediately
-      batch.forEach((idx) => updateItem(idx, { status: "uploading" }));
-
-      // Upload all 5 files in THIS batch AT THE SAME TIME using Promise.allSettled.
-      // allSettled means even if one fails, the others continue. We don't abort the batch.
-      const results = await Promise.allSettled(
-        batch.map(async (idx) => {
-          const item = queue[idx];
-
-          // Build the multipart form data (same format as the old uploader)
-          const formData = new FormData();
-          formData.append("resume", item.file);          // the actual PDF file
-          formData.append("jobId", jobId);               // which job this belongs to
-          formData.append("candidateName", item.name || item.file.name);
-
-          // api.upload posts with Content-Type: multipart/form-data
-          await api.upload("/resumes/upload", formData);
-          return idx; // return the index so we know which one succeeded
-        })
-      );
-
-      // After the batch finishes, update each file's status based on its result
-      results.forEach((result, batchPos) => {
-        const idx = batch[batchPos]; // get the original queue index
-
-        if (result.status === "fulfilled") {
-          // Upload succeeded ✅
-          updateItem(idx, { status: "done" });
-          successCount++;
-          // Increment the live counter so the progress bar and "X / Y" text updates
-          setUploadedCount((prev) => prev + 1);
-        } else {
-          // Upload failed ❌
-          updateItem(idx, {
-            status: "error",
-            error: result.reason?.message || "Upload failed",
-          });
-          // Still increment the "processed" counter so the progress bar moves forward
-          setUploadedCount((prev) => prev + 1);
-        }
-      });
-    }
-
-    // ── All batches done ──────────────────────────────────────────────────
-    setIsUploading(false);
-
-    if (successCount > 0) {
-      toast.success(`${successCount} resume${successCount > 1 ? "s" : ""} uploaded!`);
-      onUploaded?.(); // notify the parent (job page) to refresh the resumes list
-      setAllDone(true); // show the "Screen All" prompt
-    }
-
-    const failCount = pendingIndexes.length - successCount;
-    if (failCount > 0) {
-      toast.error(`${failCount} upload${failCount > 1 ? "s" : ""} failed. Check the list below.`);
-    }
-  }
+  const handleUploadAll = () => uploadAll(jobId, onUploaded);
 
   // ── Computed values ───────────────────────────────────────────────────────
   // How many files are still waiting to be uploaded
   const pendingCount = queue.filter((i) => i.status === "pending").length;
 
-  // Total files we are currently processing (for the progress bar denominator)
-  const totalBeingUploaded = queue.filter(
-    (i) => i.status === "uploading" || i.status === "done" || i.status === "error"
-  ).length;
-
   // Progress percentage: from 0 to 100
   const progressPercent =
-    totalBeingUploaded > 0
+    queue.filter((i) => i.status !== "pending").length > 0
       ? Math.round((uploadedCount / (queue.filter((i) => i.status !== "pending").length || 1)) * 100)
       : 0;
 
@@ -329,7 +234,7 @@ export default function ResumeUpload({ jobId, onUploaded, onScreenAll, isScreeni
 
             {/* PRIMARY: Upload button — disabled while uploading or if nothing is pending */}
             <Button
-              onClick={uploadAll}
+              onClick={handleUploadAll}
               disabled={isUploading || pendingCount === 0}
             >
               {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

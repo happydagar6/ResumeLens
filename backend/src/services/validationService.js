@@ -6,23 +6,23 @@ const { z } = require("zod");
 const entityExtractionSchema = z.object({
     skills: z.array(z.string()).default([]), // Array of strings
     experience: z.array(z.object({
-        role: z.string().optional(), // String
-        company: z.string().optional(), // String
-        duration: z.string().optional(), // String
-        description: z.union([z.string(), z.array(z.string())]).optional(), // String or array of strings
+        role: z.string().nullable().optional(), // String
+        company: z.string().nullable().optional(), // String
+        duration: z.string().nullable().optional(), // String
+        description: z.union([z.string(), z.array(z.string())]).nullable().optional(), // String or array of strings
     })).default([]),
     education: z.array(z.object({
-        degree: z.string().optional(), // String
-        institution: z.string().optional(), // String
-        year: z.string().optional(), // String
+        degree: z.string().nullable().optional(), // String
+        institution: z.string().nullable().optional(), // String
+        year: z.string().nullable().optional(), // String
     })).default([]),
     certifications: z.array(z.string()).default([]), // Array of strings
     contactInfo: z.object({
-        name: z.string().optional(),
-        email: z.string().optional(),
-        phone: z.string().optional(),
+        name: z.string().nullable().optional(),
+        email: z.string().nullable().optional(),
+        phone: z.string().nullable().optional(),
         location: z.string().nullable().optional(),
-    }).optional(),
+    }).nullable().optional(),
 });
 
 

@@ -13,6 +13,7 @@ import { RESUME_KEYS } from "@/hooks/use-resume";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useHiringManagers } from "@/hooks/use-users";
 import { useJobAnalytics } from "@/hooks/use-stats";
+import { useProgressStore } from "@/store/progress-store";
 import ResumeUpload from "@/components/dashboard/resume-upload";
 import ResumeCard from "@/components/dashboard/resume-card";
 import { FunnelChart } from "@/components/dashboard/funnel-chart";
@@ -63,6 +64,9 @@ export default function JobDetailPage() {
   // State
   const [showAssignPanel, setShowAssignPanel] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  
+  // Global Progress Store (for screening background status)
+  const { activeScreenings, addActiveScreening } = useProgressStore();
 
   function copyJobLink() {
     navigator.clipboard.writeText(window.location.href);
@@ -425,14 +429,17 @@ export default function JobDetailPage() {
               <ResumeCard
                 key={resume._id}
                 resume={resume}
-                // Per-resume loading state: only show spinner on the resume being screened
+                // Per-resume loading state: check if it's in the global active screenings list
                 screening={
-                  screenMutation.isPending &&
-                  screenMutation.variables?.resumeId === resume._id
+                  activeScreenings.includes(resume._id) || 
+                  (screenMutation.isPending && screenMutation.variables?.resumeId === resume._id)
                 }
                 onScreen={
                   canRunScreening
-                    ? (resumeId) => screenMutation.mutate({ resumeId, jobId })
+                    ? (resumeId) => {
+                        addActiveScreening(resumeId);
+                        screenMutation.mutate({ resumeId, jobId });
+                      }
                     : undefined
                 }
                 onDelete={

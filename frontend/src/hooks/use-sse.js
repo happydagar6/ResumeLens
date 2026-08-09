@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { API_URL } from "../lib/constants";
 import { RESUME_KEYS } from "./use-resume";
 import { SCREENING_KEYS } from "./use-screening";
+import { useProgressStore } from "@/store/progress-store";
 
 export function useSSE(isAuthenticated = false) {
     const queryClient = useQueryClient(); // instance of React Query client
@@ -45,6 +46,9 @@ export function useSSE(isAuthenticated = false) {
             // Also refresh the screenings table so the score appears immediately
             queryClient.invalidateQueries({ queryKey: SCREENING_KEYS.byJob(jobId) });
 
+            // Remove from global active screenings list so the spinner stops
+            useProgressStore.getState().removeActiveScreening(resumeId);
+
             // Show a toast with the result
             const label = recommendation?.replace(/_/g, " ") || "done";
             toast.success(`✅ Screening complete — Score: ${score}/100 (${label})`);
@@ -59,6 +63,9 @@ export function useSSE(isAuthenticated = false) {
 
             // Refresh the resume list so the "error" badge shows on the candidate card
             queryClient.invalidateQueries({ queryKey: RESUME_KEYS.byJob(jobId) });
+
+            // Remove from global active screenings list so the spinner stops
+            useProgressStore.getState().removeActiveScreening(resumeId);
 
             toast.error(`❌ Screening failed: ${error || "Unknown error"}`);
             console.error(`[SSE] Screening failed — Resume: ${resumeId}`, error);

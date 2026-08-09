@@ -54,7 +54,7 @@ async function uploadResume(req, res, next) {
         let isPastApplicant = false; // check if candidate is a past applicant
         
         // Use the email provided in the form OR the one extracted by the AI
-        const emailToCheck = candidateEmail || (extractedEntities && extractedEntities.email); // check for email in either the form or extracted entities
+        const emailToCheck = candidateEmail || (extractedEntities && extractedEntities.contactInfo?.email); // check for email in either the form or extracted entities
         
         if (emailToCheck) {
             // Look for any existing resume with this exact email

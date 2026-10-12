@@ -16,7 +16,7 @@ WHO SHOULD READ THIS?
 "I built ResumeLens, a full-stack AI-powered hiring platform that
 automates the most time-consuming parts of recruiting. Recruiters
 can post jobs, upload candidate resumes, and let the system
-automatically score each candidate using a multi-step AI pipeline
+automatically score each candidate using a multi-step AI pipeline.
 built with LangChain and LangGraph. The results appear on the
 recruiter's screen in real-time without any page refresh, using
 Server-Sent Events. The system also generates personalized
@@ -43,7 +43,7 @@ BACKEND
   - BullMQ — background job queue for AI processing
   - Server-Sent Events (SSE) — real-time push notifications to browser
 
-AI / MACHINE LEARNING
+AI
   - LangChain — connects to OpenAI, builds prompts, parses outputs
   - LangGraph — orchestrates a multi-step AI pipeline as a graph
   - OpenAI GPT-4o-mini — the actual LLM model running all AI tasks
@@ -188,7 +188,7 @@ A: When a user logs in, the server creates TWO tokens:
    - Refresh Token — used to get a new access token without re-login
    The access token is stored in an HttpOnly cookie (cannot be read
    by JavaScript — protects against XSS attacks). The authMiddleware
-   reads this cookie on every protected reque st, verifies it with
+   reads this cookie on every protected request, verifies it with
    JWT_SECRET, and attaches the user object to req.user.
 
 Q: How is the public candidate tracker link secured?
@@ -404,7 +404,7 @@ A: Yes, the architecture is designed for horizontal scaling:
   PART 6 — THINGS TO IMPROVE (Shows Senior Thinking)
 =========================================================
 
-If an interviewer asks "What would you improve?", say:
+If an interviewer asks "What would you improve?", Then I say:
 
 1. "Replace nodemailer with the already-installed Resend client
    to auto-email candidates their tracker link on upload."
@@ -424,6 +424,4 @@ If an interviewer asks "What would you improve?", say:
 6. "Write unit tests for all agent functions and integration
    tests for the API endpoints using Jest and Supertest."
 
-=========================================================
-  END OF INTERVIEW GUIDE
-=========================================================
+   

@@ -21,6 +21,7 @@ import { LoadingSpinner } from "@/components/common/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -69,8 +70,10 @@ export default function JobDetailPage() {
   const { activeScreenings, addActiveScreening } = useProgressStore();
 
   function copyJobLink() {
-    navigator.clipboard.writeText(window.location.href);
+    const publicApplyUrl = `${window.location.origin}/apply/${jobId}`;
+    navigator.clipboard.writeText(publicApplyUrl);
     setLinkCopied(true);
+    toast.success("Public candidate apply link copied to clipboard!");
     setTimeout(() => setLinkCopied(false), 2000);
   }
 

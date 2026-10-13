@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
+import { useSSE } from "@/hooks/use-sse";
 import { useUIStore } from "@/store/ui-store";
 import DashboardNavbar from "@/components/layout/dashboard-navbar";
 import Sidebar, { MobileSidebar } from "@/components/layout/sidebar";
@@ -15,6 +16,9 @@ export default function DashboardLayout({ children }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const { sidebarOpen, actions } = useUIStore();
+
+  // Mount real-time SSE updates strictly within the recruiter dashboard
+  useSSE(Boolean(user));
 
   useEffect(() => {
     if (!loading && !user) {

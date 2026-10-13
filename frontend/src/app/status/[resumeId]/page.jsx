@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Loader2, CheckCircle2, Circle, Clock, XCircle, Search, Building2, Briefcase } from "lucide-react";
+import { API_URL } from "@/lib/constants";
 
 export default function StatusTrackerPage() {
   const params = useParams();
@@ -17,7 +18,7 @@ export default function StatusTrackerPage() {
 
     async function fetchStatus() {
       try {
-        const res = await fetch(`http://localhost:5000/api/public/status/${resumeId}`);
+        const res = await fetch(`${API_URL}/public/status/${resumeId}`);
         const result = await res.json();
         
         if (!res.ok || !result.success) {

@@ -11,7 +11,6 @@ const { createAuditLog } = require("../utils/auditLogModel");
 const { CustomError } = require("../utils/errors");
 const sendEmail = require("../services/emailService");
 
-
 async function screenResume(req, res, next) {
   try {
     const { resumeId } = req.body;
@@ -147,13 +146,22 @@ async function makeDecision(req, res, next) {
   try {
     const { decision, notes = "" } = req.body;
 
-    const validDecisions = ["shortlisted", "rejected", "on_hold", "offered"];
-    if (!decision || !validDecisions.includes(decision)) {
+    const validDecisions = [
+      "shortlisted",
+      "rejected",
+      "on_hold",
+      "offered",
+      "in_review",
+    ];
+    if (decision && !validDecisions.includes(decision)) {
       throw new CustomError(
         `decision must be one of: ${validDecisions.join(", ")}`,
         400,
       );
     }
+
+    // If moving back to "in_review", reset decision to null
+    const finalDecision = decision === "in_review" ? null : decision;
 
     // Load screening with job details for the access check
     const screening = await Screening.findById(req.params.id).populate(
@@ -171,7 +179,7 @@ async function makeDecision(req, res, next) {
       throw new CustomError("Access denied", 403);
     }
 
-    screening.hiringManagerDecision = decision;
+    screening.hiringManagerDecision = finalDecision;
     screening.decidedBy = req.user.id;
     screening.decidedAt = new Date();
     screening.notes = notes;
@@ -186,7 +194,6 @@ async function makeDecision(req, res, next) {
       metadata: { newDecision: decision, notes },
     });
     // ----------------------------------------
-
 
     // Notify the job creator when a hiring manager makes a decision
     if (job.createdBy?.toString() !== req.user.id) {
@@ -325,7 +332,6 @@ async function sendScreeningEmail(req, res, next) {
     next(err);
   }
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/screening/bulk

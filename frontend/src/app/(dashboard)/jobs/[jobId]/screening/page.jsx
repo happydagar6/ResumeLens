@@ -16,8 +16,10 @@ import {
   BookOpen,
   Columns3,
   TableProperties,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
+import { exportCandidatesToCSV } from "@/lib/export-candidates-csv";
 
 export default function JobScreeningPage() {
   const { jobId } = useParams();
@@ -92,6 +94,17 @@ export default function JobScreeningPage() {
                 <LayoutList className="mr-1.5 h-3.5 w-3.5" />
                 Compare
               </Link>
+            </Button>
+          )}
+          {(screenings.length > 0 || resumes.length > 0) && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => exportCandidatesToCSV(job, screenings, resumes)}
+            >
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+              Export CSV
             </Button>
           )}
         </div>

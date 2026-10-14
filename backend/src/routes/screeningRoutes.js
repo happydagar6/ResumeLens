@@ -10,6 +10,7 @@ const {
   bulkScreen,
   deleteScreening,
   chatAboutScreening,
+  sendScreeningEmail,
 } = require("../controllers/screeningController");
 const authMiddleware = require("../middleware/authMiddleware");
 const authorize = require("../middleware/authorize");
@@ -60,6 +61,14 @@ router.post(
   authorize("hiring_manager", "recruiter", "admin"),
   generateEmail,
 );
+
+// EMAIL: dispatch email draft to candidate via Resend
+router.post(
+  "/:id/send-email",
+  authorize("hiring_manager", "recruiter", "admin"),
+  sendScreeningEmail,
+);
+
 
 // DELETE: manual cleanup of screening results
 router.delete("/:id", authorize("recruiter", "admin"), deleteScreening);

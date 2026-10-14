@@ -9,6 +9,8 @@ const { response } = require("../utils/response");
 const { generateEmailDraft } = require("../services/emailDraftAgent");
 const { createAuditLog } = require("../utils/auditLogModel");
 const { CustomError } = require("../utils/errors");
+const sendEmail = require("../services/emailService");
+
 
 async function screenResume(req, res, next) {
   try {
@@ -257,6 +259,74 @@ async function generateEmail(req, res, next) {
   }
 }
 
+// POST /api/screening/:id/send-email
+// Body: { subject, body, recipientEmail?, emailType? }
+async function sendScreeningEmail(req, res, next) {
+  try {
+    const { subject, body, recipientEmail, emailType = "general" } = req.body;
+    if (!subject || !body) {
+      throw new CustomError("Subject and email body are required", 400);
+    }
+
+    // 1. Fetch screening with candidate and job details
+    const screening = await Screening.findById(req.params.id)
+      .populate("resumeId", "candidateName candidateEmail")
+      .populate("jobId", "title company createdBy assignedTo");
+
+    if (!screening) throw new CustomError("Screening not found", 404);
+
+    // 2. Authorization check: recruiter must own or be assigned to the job
+    const job = screening.jobId;
+    const isOwner = job?.createdBy?.toString() === req.user.id;
+    const isAssigned = job?.assignedTo?.some(
+      (uid) => uid.toString() === req.user.id,
+    );
+    if (req.user.role !== "admin" && !isOwner && !isAssigned) {
+      throw new CustomError("Access denied", 403);
+    }
+
+    // 3. Resolve recipient email (fallback to candidate email from parsed resume)
+    const targetEmail = recipientEmail || screening.resumeId?.candidateEmail;
+    if (!targetEmail) {
+      throw new CustomError(
+        "Candidate email address is required to dispatch the email",
+        400,
+      );
+    }
+
+    // 4. Dispatch email using Resend
+    const emailResult = await sendEmail({
+      email: targetEmail,
+      subject,
+      body,
+    });
+
+    // 5. Record activity in AuditLog (visible on candidate timeline)
+    await createAuditLog({
+      resumeId: screening.resumeId?._id,
+      jobId: job?._id,
+      action: "EMAIL_SENT",
+      performedBy: req.user.id,
+      metadata: {
+        recipientEmail: targetEmail,
+        subject,
+        emailType,
+        resendId: emailResult?.id,
+      },
+    });
+
+    response(
+      res,
+      200,
+      { sentTo: targetEmail, resendId: emailResult?.id },
+      `Email sent successfully to ${targetEmail}`,
+    );
+  } catch (err) {
+    next(err);
+  }
+}
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/screening/bulk
 // Body: { jobId, concurrency? }
@@ -504,6 +574,7 @@ module.exports = {
   getScreeningById,
   makeDecision,
   generateEmail,
+  sendScreeningEmail,
   bulkScreen,
   deleteScreening,
   chatAboutScreening,

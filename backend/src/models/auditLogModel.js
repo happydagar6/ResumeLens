@@ -16,7 +16,7 @@ const auditLogSchema = new mongoose.Schema(
     action: {
       type: String,
       required: true,
-      enum: ["UPLOADED", "SCREENED", "DECISION_CHANGED", "EMAIL_GENERATED", "NOTE_ADDED"],
+      enum: ["UPLOADED", "SCREENED", "DECISION_CHANGED", "EMAIL_GENERATED", "NOTE_ADDED", "EMAIL_SENT"],
     },
     performedBy: {
       type: mongoose.Schema.Types.ObjectId,

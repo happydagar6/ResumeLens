@@ -5,25 +5,29 @@ const resend = new Resend(process.env.RESEND_API_KEY); // initialize resend
 
 const sendEmail = async (options) => {
     try {
+        const formattedHtml = options.html ||
+        `<div style="font-family: Arial, sans-serif; font-size: 15px; line-height: 1.6; color: #333;">
+                ${(options.body || options.text || "").replace(/\n/g, "<br />")}
+            </div>`;
+
         const { data, error } = await resend.emails.send({
-            // IMPORTANT: For testing, use the testing email below. 
-            // For production, change this to a domain you have verified in Resend (e.g. hello@yourdomain.com)
-            from: process.env.FROM_EMAIL || "onboarding@resend.dev", // from email
-            to: options.email, // to email
-            subject: options.subject, // subject
-            html: options.html, // html
+            from: process.env.FROM_EMAIL || "onboarding@resend.dev",
+            to:options.email,
+            subject:options.subject,
+            html:formattedHtml,
+            text: options.body || options.text || "",
         });
 
-        if (error) { // error handling
-            console.error("Resend API Error:", error); // error message
-            throw new Error(error.message); // throw error message
+        if (error) {
+            console.error("Resend API Error:", error);
+            throw new Error(error.message);
         }
 
-        console.log("Email sent successfully:", data); // email sent successfully
-        return data; // return data
-    } catch (err) {
-        console.error("Email sending failed:", err); // error message
-        throw err; // throw error message
+        console.log("Email sent successfully", data);
+        return data;
+    } catch (error) {
+        console.error("Email sending failed:", error);
+        throw error;
     }
 };
 

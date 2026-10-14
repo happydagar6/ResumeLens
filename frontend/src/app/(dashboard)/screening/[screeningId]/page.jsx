@@ -6,6 +6,7 @@ import {
   useScreening,
   useMakeDecision,
   useGenerateEmail,
+  useSendScreeningEmail,
   usePipelineStatus,
   useRescreen,
   useDeleteScreening,
@@ -25,6 +26,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
@@ -32,6 +35,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 
 import {
@@ -59,6 +63,7 @@ import {
   Download,
   RefreshCw,
   Trash2,
+  Send,
 } from "lucide-react";
 import Link from "next/link";
 import { generateScreeningPDF } from "@/lib/generate-screening-pdf";
@@ -95,16 +100,45 @@ export default function ScreeningDetailPage() {
 
   // Email draft state
   const emailMutation = useGenerateEmail();
+  const sendEmailMutation = useSendScreeningEmail();
   const [emailType, setEmailType] = useState(null);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [copiedSubject, setCopiedSubject] = useState(false);
   const [copiedBody, setCopiedBody] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [editableSubject, setEditableSubject] = useState("");
+  const [editableBody, setEditableBody] = useState("");
 
   const handleGenerateEmail = (type) => {
     setEmailType(type);
     emailMutation.mutate(
       { screeningId, emailType: type },
-      { onSuccess: () => setEmailDialogOpen(true) },
+      {
+        onSuccess: (data) => {
+          setRecipientEmail(candidate?.candidateEmail || "");
+          setEditableSubject(data?.data?.subject || "");
+          setEditableBody(data?.data?.body || "");
+          setEmailDialogOpen(true);
+        },
+      },
+    );
+  };
+
+  const handleSendEmail = () => {
+    if (!editableSubject.trim() || !editableBody.trim()) return;
+    sendEmailMutation.mutate(
+      {
+        screeningId,
+        recipientEmail,
+        subject: editableSubject,
+        body: editableBody,
+        emailType: emailType || "general",
+      },
+      {
+        onSuccess: () => {
+          setEmailDialogOpen(false);
+        },
+      },
     );
   };
 
@@ -443,69 +477,123 @@ export default function ScreeningDetailPage() {
 
       {/* Email Draft Dialog */}
       <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Generated Email Draft</DialogTitle>
+            <DialogTitle>Review & Send Email</DialogTitle>
             <DialogDescription>
-              Review and copy the AI-generated email to send to the candidate.
+              Review, personalize, and dispatch this AI-drafted email directly to the candidate via Resend.
             </DialogDescription>
           </DialogHeader>
-          {emailMutation.data && (
-            <div className="space-y-4">
-              {/* Subject */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">
-                    Subject
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      copyText(
-                        emailMutation.data.data.subject,
-                        setCopiedSubject,
-                      )
-                    }
-                  >
-                    {copiedSubject ? (
-                      <Check className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-                <p className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                  {emailMutation.data.data.subject}
-                </p>
-              </div>
 
-              {/* Body */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">
-                    Body
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      copyText(emailMutation.data.data.body, setCopiedBody)
-                    }
-                  >
-                    {copiedBody ? (
-                      <Check className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-                <pre className="rounded-md border bg-muted/30 px-3 py-2 text-sm whitespace-pre-wrap font-sans max-h-80 overflow-y-auto">
-                  {emailMutation.data.data.body}
-                </pre>
-              </div>
+          <div className="space-y-4 py-2">
+            {/* Recipient Email */}
+            <div className="space-y-1.5">
+              <Label htmlFor="recipientEmail" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                To (Candidate Email)
+              </Label>
+              <Input
+                id="recipientEmail"
+                type="email"
+                placeholder="candidate@example.com"
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
+              />
+              {!candidate?.candidateEmail && (
+                <p className="text-xs text-amber-500">
+                  No email address was found in the parsed resume. Please provide recipient email.
+                </p>
+              )}
             </div>
-          )}
+
+            {/* Subject */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="emailSubject" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Subject Line
+                </Label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => copyText(editableSubject, setCopiedSubject)}
+                >
+                  {copiedSubject ? (
+                    <Check className="h-3.5 w-3.5 text-green-600 mr-1" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5 mr-1" />
+                  )}
+                  {copiedSubject ? "Copied" : "Copy"}
+                </Button>
+              </div>
+              <Input
+                id="emailSubject"
+                value={editableSubject}
+                onChange={(e) => setEditableSubject(e.target.value)}
+                placeholder="Email subject..."
+              />
+            </div>
+
+            {/* Body */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="emailBody" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Message Body
+                </Label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => copyText(editableBody, setCopiedBody)}
+                >
+                  {copiedBody ? (
+                    <Check className="h-3.5 w-3.5 text-green-600 mr-1" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5 mr-1" />
+                  )}
+                  {copiedBody ? "Copied" : "Copy"}
+                </Button>
+              </div>
+              <Textarea
+                id="emailBody"
+                value={editableBody}
+                onChange={(e) => setEditableBody(e.target.value)}
+                rows={9}
+                className="font-sans text-sm leading-relaxed"
+                placeholder="Write your email message..."
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setEmailDialogOpen(false)}
+              disabled={sendEmailMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendEmail}
+              disabled={
+                sendEmailMutation.isPending ||
+                !recipientEmail.trim() ||
+                !editableSubject.trim() ||
+                !editableBody.trim()
+              }
+            >
+              {sendEmailMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending Email...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Send Email to Candidate
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

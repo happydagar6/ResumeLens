@@ -102,6 +102,32 @@ export function useGenerateEmail() {
   });
 }
 
+// POST /api/screening/:id/send-email — dispatches real email to candidate via Resend
+export function useSendScreeningEmail() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ screeningId, recipientEmail, subject, body, emailType }) =>
+      api.post(`/screening/${screeningId}/send-email`, {
+        recipientEmail,
+        subject,
+        body,
+        emailType,
+      }),
+    onSuccess: (data) => {
+      // Invalidate audit logs query so the timeline reflects the sent email
+      queryClient.invalidateQueries({
+        queryKey: ["audit-logs"],
+      });
+      toast.success(data?.message || "Email sent to candidate successfully!");
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to send email");
+    },
+  });
+}
+
+
 // POST /api/pipeline/batch-screen — enqueues all unscreened resumes for a job into BullMQ at once
 export function useBulkScreening() {
   const queryClient = useQueryClient();

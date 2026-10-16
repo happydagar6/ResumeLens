@@ -3,7 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Briefcase, Plus, Settings, Sparkles, ShieldAlert, Users } from "lucide-react";
+import {
+  LayoutDashboard,
+  Briefcase,
+  Plus,
+  Settings,
+  Sparkles,
+  ShieldAlert,
+  Users,
+  UserCog,
+} from "lucide-react";
 import { usePermissions } from "@/hooks/use-permissions";
 
 function NavLinks({ onClick }) {
@@ -11,7 +20,13 @@ function NavLinks({ onClick }) {
   const { canCreateJob, isHiringManager, isAdmin } = usePermissions();
 
   const links = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true, show: true },
+    {
+      href: "/dashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      exact: true,
+      show: true,
+    },
     {
       href: "/jobs",
       label: isHiringManager ? "Assigned Jobs" : "Jobs",
@@ -19,13 +34,38 @@ function NavLinks({ onClick }) {
       exact: false,
       show: true,
     },
-    { href: "/jobs/new", label: "New Job", icon: Plus, exact: true, show: canCreateJob },
-    { href: "/settings", label: "Settings", icon: Settings, exact: false, show: true },
+    {
+      href: "/candidates",
+      label: "Candidates",
+      icon: Users,
+      exact: false,
+      show: true,
+    },
+    {
+      href: "/jobs/new",
+      label: "New Job",
+      icon: Plus,
+      exact: true,
+      show: canCreateJob,
+    },
+    {
+      href: "/settings",
+      label: "Settings",
+      icon: Settings,
+      exact: false,
+      show: true,
+    },
   ];
 
   // Admin-only links rendered in a separate section below
   const adminLinks = [
-    { href: "/admin/users", label: "User Management", icon: Users, exact: false, show: isAdmin },
+    {
+      href: "/admin/users",
+      label: "User Management",
+      icon: UserCog,
+      exact: false,
+      show: isAdmin,
+    },
   ];
 
   const renderLink = (link) => {
@@ -43,13 +83,15 @@ function NavLinks({ onClick }) {
           "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
           isActive
             ? "bg-linear-to-r from-primary/90 to-primary text-primary-foreground shadow-md shadow-primary/30"
-            : "text-muted-foreground hover:text-foreground hover:bg-primary/8 hover:translate-x-0.5"
+            : "text-muted-foreground hover:text-foreground hover:bg-primary/8 hover:translate-x-0.5",
         )}
       >
-        <link.icon className={cn(
-          "h-4 w-4 transition-all duration-200",
-          isActive ? "text-primary-foreground" : "group-hover:text-primary"
-        )} />
+        <link.icon
+          className={cn(
+            "h-4 w-4 transition-all duration-200",
+            isActive ? "text-primary-foreground" : "group-hover:text-primary",
+          )}
+        />
         {link.label}
         {isActive && (
           <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary-foreground/70" />

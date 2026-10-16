@@ -6,7 +6,34 @@ import { toast } from "sonner";
 // Centralised object defining cache keys for resumes so React Query can manage cache cleanly.
 export const RESUME_KEYS = {
     byJob: (jobId) => ["resumes", "byJob", jobId], // Generates a unique cache array label like ["resumes", "byJob", "123"]
+    candidates: (params) => ["resumes", "candidates", params],
 };
+
+export function useCandidates(params = {}) {
+  // Filter out empty strings, null, undefined, or "all" to keep URL clean
+  const cleanParams = Object.fromEntries(
+    Object.entries(params).filter(([_, v]) => v !== "" && v !== undefined && v !== null && v !== "all")
+  );
+  const queryString = new URLSearchParams(cleanParams).toString();
+
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
+    queryKey: RESUME_KEYS.candidates(params),
+    queryFn: () => api.get(`/resumes/candidates${queryString ? `?${queryString}` : ""}`),
+    placeholderData: (previousData) => previousData,
+  });
+
+  return {
+    candidates: data?.data?.candidates ?? [],
+    pagination: data?.data?.pagination ?? { total: 0, page: 1, pages: 0, limit: 10 },
+    jobs: data?.data?.jobs ?? [],
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  };
+}
+
 
 // ── Queries (GET Data) ────────────────────────────────────────────────────────
 
@@ -63,4 +90,4 @@ export function useDeleteResume(jobId) {
       toast.error(err.message || "Delete failed"); // Show red error toast
     },
   });
-}
+}

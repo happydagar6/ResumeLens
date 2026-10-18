@@ -574,6 +574,122 @@ async function chatAboutScreening(req, res, next) {
   }
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TEAM COLLABORATION & RECRUITER NOTES
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/screening/:id/notes
+// Body: { text: string, category?: string }
+async function addScreeningNote(req, res, next) {
+  try {
+    const { text, category = "general" } = req.body;
+    if (!text || !text.trim()) {
+      throw new CustomError("Note text is required", 400);
+    }
+
+    const screening = await Screening.findById(req.params.id).populate("jobId");
+    if (!screening) throw new CustomError("Screening not found", 404);
+
+    const job = screening.jobId;
+    if (
+      req.user.role !== "admin" &&
+      job.createdBy?.toString() !== req.user.id &&
+      !job.assignedTo?.some((id) => id.toString() === req.user.id)
+    ) {
+      throw new CustomError("Access denied to this job", 403);
+    }
+
+    const validCategories = ["general", "interview", "salary", "decision"];
+    const selectedCategory = validCategories.includes(category) ? category : "general";
+
+    const newNote = {
+      author: req.user.id,
+      text: text.trim(),
+      category: selectedCategory,
+      createdAt: new Date(),
+    };
+
+    screening.teamNotes.push(newNote);
+    await screening.save();
+
+    await screening.populate({
+      path: "teamNotes.author",
+      select: "name email role"
+    });
+
+    const savedNote = screening.teamNotes[screening.teamNotes.length - 1];
+
+    // Log this action to the candidates live audit timeline
+    await createAuditLog({
+      resumeId: screening.resumeId,
+      jobId: job._id || job,
+      action: "NOTE_ADDED",
+      performedBy: req.user.id,
+      metadata: {
+        noteId: savedNote._id,
+        category: selectedCategory,
+        snippet: text.trim().slice(0, 60),
+      }
+    })
+
+    response(res, 201, { note: savedNote }, "Note added successfully");
+  } catch (error) {
+    next(error);
+  }
+}
+
+// GET /api/screening/:id/notes
+async function getScreeningNotes(req, res, next) {
+  try {
+    const screening = await Screening.findById(req.params.id)
+    .populate("jobId")
+    .populate("teamNotes.author", "name email role");
+
+    if (!screening) throw new CustomError("Screening not found", 404);
+
+    const job = screening.jobId;
+    if (
+      req.user.role !== "admin" &&
+      job.createdBy?.toString() !== req.user.id &&
+      !job.assignedTo?.some((id) => id.toString() === req.user.id)
+    ) {
+      throw new CustomError("Access denied", 403);
+    }
+
+    // Sort notes newest first
+    const notes = (screening.teamNotes || []).sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    response(res, 200, { notes }, "Notes retrieved successfully");
+  } catch (error) {
+    next(error);
+  }
+}
+
+// DELETE /api/screening/:id/notes/:noteId
+async function deleteScreeningNote(req, res, next) {
+  try {
+    const screening = await Screening.findById(req.params.id);
+    if (!screening) throw new CustomError("Screening not found", 404);
+
+    const note = screening.teamNotes.id(req.params.noteId);
+    if (!note) throw new CustomError("Note not found", 404);
+
+    // Security Guard: Only the author of the note or an admin can delete it
+    if (req.user.role !== "admin" && note.author.toString() !== req.user.id) {
+      throw new CustomError("You can only delete your own notes", 403);
+    }
+
+    screening.teamNotes.pull({ _id: req.params.noteId });
+    await screening.save();
+
+    response(res, 200, { noteId: req.params.noteId }, "Note deleted successfully");
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   screenResume,
   getScreeningResults,
@@ -584,4 +700,7 @@ module.exports = {
   bulkScreen,
   deleteScreening,
   chatAboutScreening,
+  addScreeningNote,
+  getScreeningNotes,
+  deleteScreeningNote,
 };

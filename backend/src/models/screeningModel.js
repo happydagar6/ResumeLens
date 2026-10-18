@@ -77,6 +77,30 @@ const screeningSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    teamNotes: [
+      {
+        author: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        text: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        category: {
+          type: String,
+          enum: ["general", "interview", "salary", "decision"],
+          default: "general",
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        }
+      }
+    ],
   },
   { timestamps: true },
 );

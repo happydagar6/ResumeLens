@@ -21,6 +21,7 @@ import CandidateChat from "@/components/dashboard/candidate-chat";
 import AuditTimeline from "@/components/dashboard/audit-timeline";
 import SkillsDisplay from "@/components/dashboard/skills-display";
 import QuestionsDisplay from "@/components/dashboard/questions-display";
+import CandidateNotes from "@/components/dashboard/candidate-notes";
 import { LoadingSpinner } from "@/components/common/loading-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -621,6 +622,11 @@ export default function ScreeningDetailPage() {
 
         {/* questions is the interviewQuestion document; .questions is the array */}
         <QuestionsDisplay questions={questions?.questions || []} />
+      </div>
+
+      {/* ── Internal Recruiter Notes & Team Collaboration ── */}
+      <div className="mt-8">
+        <CandidateNotes screeningId={screeningId} resumeId={candidate?._id} />
       </div>
 
       {/* ── Candidate Activity Timeline ── */}

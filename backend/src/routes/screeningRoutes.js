@@ -11,6 +11,9 @@ const {
   deleteScreening,
   chatAboutScreening,
   sendScreeningEmail,
+  addScreeningNote,
+  getScreeningNotes,
+  deleteScreeningNote,
 } = require("../controllers/screeningController");
 const authMiddleware = require("../middleware/authMiddleware");
 const authorize = require("../middleware/authorize");
@@ -44,6 +47,12 @@ router.post("/", authorize("recruiter", "admin"), screenResume);
 
 // BULK SCREEN: endpoint to screen multiple resumes for a job at once
 router.post("/bulk", authorize("recruiter", "admin"), bulkScreen);
+
+// TEAM NOTES: Recruiter & Hiring Manager collaborative feed
+router.get("/:id/notes", authorize("hiring_manager", "recruiter", "admin"), getScreeningNotes);
+router.post("/:id/notes", authorize("hiring_manager", "recruiter", "admin"), addScreeningNote);
+router.delete("/:id/notes/:noteId", authorize("hiring_manager", "recruiter", "admin"), deleteScreeningNote);
+
 
 // CHAT: conversational AI about a specific candidate's resume
 router.post("/:id/chat", authorize("hiring_manager", "recruiter", "admin"), chatAboutScreening);

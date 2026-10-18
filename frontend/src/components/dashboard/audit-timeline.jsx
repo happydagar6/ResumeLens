@@ -2,14 +2,14 @@
 
 import { useAuditLogs } from "@/hooks/use-screening";
 import { format } from "date-fns";
-import { Upload, Cpu, CheckCircle, Mail, FileText, User } from "lucide-react";
+import { Upload, Cpu, CheckCircle, Mail, FileText, User, MessageSquare } from "lucide-react";
 
 export default function AuditTimeline({ resumeId }) {
-  const { data, isLoading } = useAuditLogs(resumeId); // audit logs
-  const logs = data?.data || []; // logs
+  const { data, isLoading } = useAuditLogs(resumeId); // candidate audit logs
+  const logs = data?.data || []; // audit log items
 
   if (isLoading) return <p className="text-sm text-muted-foreground animate-pulse">Loading timeline...</p>; // loading message
-  if (logs.length === 0) return <p className="text-sm text-muted-foreground">No activity recorded yet.</p>; // no activity message
+  if (logs.length === 0) return <p className="text-sm text-muted-foreground">No activity recorded yet.</p>; // empty message
 
   return (
     <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-linear-to-b before:from-transparent before:via-muted before:to-transparent">
@@ -34,6 +34,11 @@ export default function AuditTimeline({ resumeId }) {
           Icon = Mail;
           colorClass = "bg-amber-100 text-amber-600 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800";
           title = `Email Sent: ${log.metadata?.subject || "Candidate"}`;
+        } else if (log.action === "NOTE_ADDED") {
+          Icon = MessageSquare;
+          colorClass = "bg-sky-100 text-sky-600 border-sky-200 dark:bg-sky-900/30 dark:text-sky-400 dark:border-sky-800";
+          const categoryTag = log.metadata?.category ? ` (${log.metadata.category.toUpperCase()})` : "";
+          title = `Team Note Added${categoryTag}`;
         }
 
         return (
@@ -51,6 +56,11 @@ export default function AuditTimeline({ resumeId }) {
                   {format(new Date(log.createdAt), "MMM d, h:mm a")}
                 </time>
               </div>
+              {log.metadata?.noteSnippet && (
+                <p className="text-xs text-muted-foreground/90 italic mt-1 line-clamp-2">
+                  &ldquo;{log.metadata.noteSnippet}&rdquo;
+                </p>
+              )}
               <div className="text-sm text-muted-foreground flex items-center gap-1.5 mt-2">
                 <User className="w-3 h-3" />
                 <span>{log.performedBy ? log.performedBy.name : "System AI"}</span>

@@ -8,6 +8,7 @@ import { RESUME_KEYS } from "../hooks/use-resume";
 export const SCREENING_KEYS = {
   byJob: (jobId) => ["screenings", "job", jobId],        // Dynamic cache key for all screening reports under a specific job
   detail: (screeningId) => ["screenings", screeningId],  // Dynamic cache key for a single candidate screening detail
+  notes: (screeningId) => ["screenings", screeningId, "notes"],
 };
 
 // ── Queries (GET Data) ────────────────────────────────────────────────────────
@@ -232,3 +233,60 @@ export function useAuditLogs(resumeId) {
   });
 }
 
+// ── Team Collaboration & Recruiter Notes Hooks ────────────────────────────────
+
+// GET /api/screening/:id/notes — fetches collaborative team notes for a candidate
+export function useScreeningNotes(screeningId) {
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: SCREENING_KEYS.notes(screeningId),
+    queryFn: () => api.get(`/screening/${screeningId}/notes`),
+    enabled: Boolean(screeningId),
+  });
+
+  return {
+    notes: data?.data?.notes ?? [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  };
+}
+
+// POST /api/screening/:id/notes — adds an internal recruiter / team note
+export function useAddScreeningNote() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ screeningId, text, category }) =>
+      api.post(`/screening/${screeningId}/notes`, { text, category }),
+    onSuccess: (_, variables) => {
+      // 1. Invalidate notes cache so the feed refreshes immediately
+      queryClient.invalidateQueries({ queryKey: SCREENING_KEYS.notes(variables.screeningId) });
+      // 2. Invalidate audit logs so the timeline updates with "NOTE_ADDED"
+      if (variables.resumeId) {
+        queryClient.invalidateQueries({ queryKey: ["audit-logs", variables.resumeId] });
+      }
+      toast.success("Note added successfully");
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to add note");
+    },
+  });
+}
+
+// DELETE /api/screening/:id/notes/:noteId — deletes an internal note
+export function useDeleteScreeningNote() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ screeningId, noteId }) =>
+      api.delete(`/screening/${screeningId}/notes/${noteId}`),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: SCREENING_KEYS.notes(variables.screeningId) });
+      toast.success("Note deleted");
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to delete note");
+    },
+  });
+}

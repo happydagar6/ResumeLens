@@ -23,6 +23,7 @@ const usersRoutes = require('./routes/usersRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const publicRoutes = require('./routes/publicRoutes');
+const interviewRoutes = require("./routes/interviewRoutes");
 const { addClient, removeClient } = require('./services/sseService');
 const authMiddleware = require('./middleware/authMiddleware');
 
@@ -127,6 +128,7 @@ app.use("/api/users", usersRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/interviews', interviewRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);

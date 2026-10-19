@@ -9,7 +9,8 @@
 
 | Attribute | Current Value |
 | :--- | :--- |
-| **Current State** | Foundation Documentation Complete; Ready for Next Active Feature |
+| **Current Feature** | **Interview Scheduling & Calendar Management (Phase 7)** |
+| **Status** | 🟡 Planning & Architecture Phase (Zero code written yet) |
 | **Active Branch** | `main` |
 | **Backend Status** | Online (Node/Express Port 5000, MongoDB Atlas, Upstash Redis) |
 | **Frontend Status** | Online (Next.js 16 Port 3000) |
@@ -17,60 +18,52 @@
 
 ---
 
-## 2. Next Feature on Deck (Awaiting User Selection)
+## 2. Active Feature: Interview Scheduling & Calendar Management
 
-Select the next high-impact commercial ATS capability to build:
-
-- [ ] **Option 1: 1-Click Candidate Interview Scheduling & Calendar Integration**
-  - Generate automated interview scheduling links.
-  - Recruiter Google Calendar / Outlook integration or Cal.com/Calendly link dispatch.
-  - Candidate selects interview time slot; triggers automated calendar invite and confirmation email.
-
-- [ ] **Option 2: Bulk Resume Batch Ingestion & Real-Time Upload Progress Queue**
-  - Drag-and-drop 20+ resumes simultaneously.
-  - Multi-threaded processing queue with individual progress bars per candidate.
-  - Background batch AI screening with bulk status notifications.
-
-- [ ] **Option 3: Advanced Hiring Analytics & Custom Pipeline Conversion Funnels**
-  - Time-to-hire and stage conversion velocity charts (`applied` ➔ `interview` ➔ `hired`).
-  - Recruiter productivity metrics (resumes screened, notes added, emails sent).
-  - Source channel attribution (Referral vs Public Portal vs Sourced).
-
-- [ ] **Option 4: Offer Letter Generator & E-Signature Workflow**
-  - Template-based offer letter generation with compensation tokens.
-  - PDF offer letter export with candidate acceptance tracking.
+### Goal:
+Allow Recruiters, Hiring Managers, and Admins to schedule interview rounds (Technical, HR, System Design) for screened candidates with meeting links (Google Meet, Zoom, In-person), auto-transition the candidate pipeline stage to `interview`, dispatch confirmation emails to the candidate via Resend, and reflect the upcoming interview on the candidate's public status tracking page.
 
 ---
 
-## 3. Active Feature Execution Checklist (Template for Current Feature)
+## 3. Step-by-Step Execution Plan
 
-When the active feature is confirmed, tasks will be tracked here in real-time:
+- [ ] **Step 1: Database Model (`interviewModel.js`)**
+  - [ ] Define Mongoose schema: `resumeId`, `jobId`, `title`, `roundType`, `scheduledAt`, `duration`, `interviewer`, `meetingType`, `meetingLink`, `status`, `notes`, `createdBy`
+  - [ ] Index on `resumeId` and `jobId` for sub-10ms query performance
+  - [ ] Verify validation rules and default status (`scheduled`)
 
-- [ ] **Step 1: Database Schema & Modeling**
-  - [ ] Define Mongoose schema fields and validation rules
-  - [ ] Verify backward compatibility with existing MongoDB documents
-  - [ ] Verify timestamps and default references
+- [ ] **Step 2: Backend Controller & Protected Routes (`interviewController.js`, `interviewRoutes.js`)**
+  - [ ] `POST /api/interviews` — Schedule a new interview round
+  - [ ] `GET /api/interviews/candidate/:resumeId` — Get all interviews for a candidate
+  - [ ] `GET /api/interviews` — Get upcoming interviews across recruiter's jobs
+  - [ ] `PUT /api/interviews/:id` — Reschedule interview (date/time/link) or update status (`completed`)
+  - [ ] `DELETE /api/interviews/:id` — Cancel interview with cancellation reason
+  - [ ] Automatic side effect: Auto-update `Resume.pipelineStage = "interview"`
+  - [ ] Automatic side effect: Create `AuditLog` event (`INTERVIEW_SCHEDULED` / `INTERVIEW_RESCHEDULED` / `INTERVIEW_CANCELLED`)
+  - [ ] Role-based authorization (`admin`, `hiring_manager`, `recruiter`) + Job ownership check
 
-- [ ] **Step 2: Backend Controller & API Routes**
-  - [ ] Create controller methods with validation and error handling
-  - [ ] Implement RBAC authorization guards (`protect`, `authorize`)
-  - [ ] Implement resource-level ownership and job scoping guards
-  - [ ] Connect candidate activity audit logs (`createAuditLog`)
+- [ ] **Step 3: Automated Candidate Notification via Resend**
+  - [ ] Connect `emailService.js` to dispatch professional interview calendar invite email to candidate with date, time, duration, and Google Meet/Zoom link
 
-- [ ] **Step 3: Frontend Data Hooks & React Query**
-  - [ ] Define query keys in hook modules
-  - [ ] Implement `useQuery` hooks for data retrieval with defensive fallbacks
-  - [ ] Implement `useMutation` hooks with query cache invalidation and toast alerts
+- [ ] **Step 4: Candidate Public Status Portal Integration (`/status/[resumeId]`)**
+  - [ ] Expose upcoming interview round details on the public status stepper (privacy shielded: interviewer internal notes hidden)
 
-- [ ] **Step 4: UI Components & Page Integration**
-  - [ ] Build reusable UI components using Tailwind CSS and shadcn/ui
-  - [ ] Embed component into target dashboard page
-  - [ ] Ensure mobile responsiveness and dark mode compatibility
+- [ ] **Step 5: Frontend Data Hooks (`use-interviews.js`)**
+  - [ ] `useCandidateInterviews(resumeId)` with TanStack Query
+  - [ ] `useScheduleInterview()` mutation with cache invalidation
+  - [ ] `useUpdateInterview()` mutation (reschedule / mark completed)
+  - [ ] `useCancelInterview()` mutation
 
-- [ ] **Step 5: End-to-End Verification & Testing**
-  - [ ] Manual role-based access test across Admin, Hiring Manager, and Recruiter
-  - [ ] Verify real-time cache updates and audit timeline synchronization
-  - [ ] Git commit with conventional commit message
+- [ ] **Step 6: Frontend UI Components**
+  - [ ] `schedule-interview-dialog.jsx` — Dialog with Date/Time picker, round selector, duration, interviewer, and meeting URL
+  - [ ] `upcoming-interview-card.jsx` — Card on `/screening/[screeningId]` showing interview details, countdown, and meeting link
+  - [ ] "Schedule Interview" trigger button on Kanban candidate card & Screening header
+
+- [ ] **Step 7: Verification & End-to-End Testing**
+  - [ ] Schedule interview ➔ Verify MongoDB document created
+  - [ ] Verify candidate stage moved to `interview` on Kanban board
+  - [ ] Verify Activity Timeline has `INTERVIEW_SCHEDULED` entry
+  - [ ] Verify candidate received confirmation email
 
 ---
 
@@ -78,7 +71,7 @@ When the active feature is confirmed, tasks will be tracked here in real-time:
 
 | Issue ID | Severity | Description | Status | Resolution / Action Required |
 | :--- | :--- | :--- | :--- | :--- |
-| *None* | - | System running cleanly with zero active issues | Resolved | - |
+| *None* | - | Baseline clean, no blockers | Open | - |
 
 ---
 

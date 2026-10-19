@@ -16,7 +16,17 @@ const auditLogSchema = new mongoose.Schema(
     action: {
       type: String,
       required: true,
-      enum: ["UPLOADED", "SCREENED", "DECISION_CHANGED", "EMAIL_GENERATED", "NOTE_ADDED", "EMAIL_SENT"],
+      enum: [
+        "UPLOADED",
+        "SCREENED",
+        "DECISION_CHANGED",
+        "EMAIL_GENERATED",
+        "NOTE_ADDED",
+        "EMAIL_SENT",
+        "INTERVIEW_SCHEDULED",
+        "INTERVIEW_RESCHEDULED",
+        "INTERVIEW_CANCELLED",
+      ],
     },
     performedBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -28,7 +38,7 @@ const auditLogSchema = new mongoose.Schema(
       default: {},
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("AuditLog", auditLogSchema);

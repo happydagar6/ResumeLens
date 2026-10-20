@@ -22,6 +22,7 @@ import AuditTimeline from "@/components/dashboard/audit-timeline";
 import SkillsDisplay from "@/components/dashboard/skills-display";
 import QuestionsDisplay from "@/components/dashboard/questions-display";
 import CandidateNotes from "@/components/dashboard/candidate-notes";
+import CandidateInterviewsSection from "@/components/dashboard/upcoming-interview-card";
 import { LoadingSpinner } from "@/components/common/loading-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -597,6 +598,18 @@ export default function ScreeningDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Separator />
+
+      {/* ── Candidate Interview Scheduling & Rounds ── */}
+      <div className="space-y-4">
+        <CandidateInterviewsSection
+          resumeId={candidate?._id}
+          candidateName={candidate?.candidateName}
+          candidateEmail={candidate?.candidateEmail}
+          jobTitle={job?.title}
+        />
+      </div>
 
       <Separator />
 

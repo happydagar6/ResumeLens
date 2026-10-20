@@ -27,43 +27,44 @@ Allow Recruiters, Hiring Managers, and Admins to schedule interview rounds (Tech
 
 ## 3. Step-by-Step Execution Plan
 
-- [ ] **Step 1: Database Model (`interviewModel.js`)**
-  - [ ] Define Mongoose schema: `resumeId`, `jobId`, `title`, `roundType`, `scheduledAt`, `duration`, `interviewer`, `meetingType`, `meetingLink`, `status`, `notes`, `createdBy`
-  - [ ] Index on `resumeId` and `jobId` for sub-10ms query performance
-  - [ ] Verify validation rules and default status (`scheduled`)
+- [x] **Step 1: Database Model (`interviewModel.js`)**
+  - [x] Define Mongoose schema: `resumeId`, `jobId`, `title`, `roundType`, `scheduledAt`, `duration`, `interviewer`, `meetingType`, `meetingLink`, `status`, `notes`, `createdBy`
+  - [x] Index on `resumeId` and `jobId` for sub-10ms query performance
+  - [x] Verify validation rules and default status (`scheduled`)
 
-- [ ] **Step 2: Backend Controller & Protected Routes (`interviewController.js`, `interviewRoutes.js`)**
-  - [ ] `POST /api/interviews` — Schedule a new interview round
-  - [ ] `GET /api/interviews/candidate/:resumeId` — Get all interviews for a candidate
-  - [ ] `GET /api/interviews` — Get upcoming interviews across recruiter's jobs
-  - [ ] `PUT /api/interviews/:id` — Reschedule interview (date/time/link) or update status (`completed`)
-  - [ ] `DELETE /api/interviews/:id` — Cancel interview with cancellation reason
-  - [ ] Automatic side effect: Auto-update `Resume.pipelineStage = "interview"`
-  - [ ] Automatic side effect: Create `AuditLog` event (`INTERVIEW_SCHEDULED` / `INTERVIEW_RESCHEDULED` / `INTERVIEW_CANCELLED`)
-  - [ ] Role-based authorization (`admin`, `hiring_manager`, `recruiter`) + Job ownership check
+- [x] **Step 2: Backend Controller & Protected Routes (`interviewController.js`, `interviewRoutes.js`)**
+  - [x] `POST /api/interviews` — Schedule a new interview round
+  - [x] `GET /api/interviews/candidate/:resumeId` — Get all interviews for a candidate
+  - [x] `GET /api/interviews` — Get upcoming interviews across recruiter's jobs
+  - [x] `PUT /api/interviews/:id` — Reschedule interview (date/time/link) or update status (`completed`)
+  - [x] `DELETE /api/interviews/:id` — Cancel interview with cancellation reason
+  - [x] Automatic side effect: Auto-advance candidate decision to `"shortlisted"`
+  - [x] Automatic side effect: Create `AuditLog` event (`INTERVIEW_SCHEDULED` / `INTERVIEW_RESCHEDULED` / `INTERVIEW_CANCELLED`)
+  - [x] Role-based authorization (`admin`, `hiring_manager`, `recruiter`) + Job ownership check
 
-- [ ] **Step 3: Automated Candidate Notification via Resend**
-  - [ ] Connect `emailService.js` to dispatch professional interview calendar invite email to candidate with date, time, duration, and Google Meet/Zoom link
+- [x] **Step 3: Automated Candidate Notification via Resend**
+  - [x] Connect `emailService.js` to dispatch professional interview calendar invite email to candidate with date, time, duration, and Google Meet/Zoom link
 
-- [ ] **Step 4: Candidate Public Status Portal Integration (`/status/[resumeId]`)**
-  - [ ] Expose upcoming interview round details on the public status stepper (privacy shielded: interviewer internal notes hidden)
+- [x] **Step 4: Candidate Public Status Portal Integration (`/status/[resumeId]`)**
+  - [x] Expose upcoming interview round details on the public status stepper (privacy shielded: interviewer internal notes hidden)
 
-- [ ] **Step 5: Frontend Data Hooks (`use-interviews.js`)**
-  - [ ] `useCandidateInterviews(resumeId)` with TanStack Query
-  - [ ] `useScheduleInterview()` mutation with cache invalidation
-  - [ ] `useUpdateInterview()` mutation (reschedule / mark completed)
-  - [ ] `useCancelInterview()` mutation
+- [x] **Step 5: Frontend Data Hooks (`use-interview.js`)**
+  - [x] `useCandidateInterviews(resumeId)` with TanStack Query
+  - [x] `useScheduleInterview()` mutation with automatic cache invalidation
+  - [x] `useUpdateInterview()` mutation (reschedule / mark completed)
+  - [x] `useCancelInterview()` mutation (soft-cancel with audit logging)
 
-- [ ] **Step 6: Frontend UI Components**
-  - [ ] `schedule-interview-dialog.jsx` — Dialog with Date/Time picker, round selector, duration, interviewer, and meeting URL
-  - [ ] `upcoming-interview-card.jsx` — Card on `/screening/[screeningId]` showing interview details, countdown, and meeting link
-  - [ ] "Schedule Interview" trigger button on Kanban candidate card & Screening header
+- [x] **Step 6: Frontend UI Components**
+  - [x] `schedule-interview-dialog.jsx` — Dialog with Date/Time picker, round selector, duration, interviewer, and meeting URL
+  - [x] `upcoming-interview-card.jsx` — Card on `/screening/[screeningId]` showing interview details, countdown, and meeting link
+  - [x] Activity Timeline updated with interview milestone events
+  - [x] Public Candidate Status Portal updated with Upcoming Interview banner & 1-click meeting join
 
 - [ ] **Step 7: Verification & End-to-End Testing**
   - [ ] Schedule interview ➔ Verify MongoDB document created
-  - [ ] Verify candidate stage moved to `interview` on Kanban board
+  - [ ] Verify candidate stage moved to `shortlisted` on Kanban board
   - [ ] Verify Activity Timeline has `INTERVIEW_SCHEDULED` entry
-  - [ ] Verify candidate received confirmation email
+  - [ ] Verify candidate public tracker displays upcoming interview details
 
 ---
 

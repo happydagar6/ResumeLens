@@ -4,6 +4,7 @@ const express = require("express");
 const Job = require("../models/jobModel");                   // To query job details
 const Resume = require("../models/resumeModel");             // To save candidate application
 const Screening = require("../models/screeningModel");
+const Interview = require("../models/interviewModel");
 const upload = require("../config/multer");                 // Multer memory storage (req.file.buffer)
 const { parsePDF } = require("../services/pdfParserService"); // In-memory PDF text extraction
 const { extractEntities } = require("../services/entityExtractorAgent"); // AI skill/experience extraction
@@ -54,6 +55,14 @@ router.get("/status/:resumeId", async (req, res, next) => {
       }
     }
 
+    // Fetch upcoming scheduled interview (strictly safe public fields only: no internal notes)
+    const upcomingInterview = await Interview.findOne({
+      resumeId: resume._id,
+      status: { $in: ["scheduled", "rescheduled"] },
+    })
+      .select("title scheduledAt duration meetingLink meetingType")
+      .sort({ scheduledAt: 1 });
+
     // Only return safe, non-sensitive data
     res.status(200).json({
       success: true,
@@ -61,8 +70,9 @@ router.get("/status/:resumeId", async (req, res, next) => {
         candidateName: resume.candidateName,
         jobTitle: resume.jobId?.title,
         company: resume.jobId?.company,
-        friendlyStatus,
+        friendlyStatus: upcomingInterview ? "Interview Scheduled!" : friendlyStatus,
         activeStep,
+        upcomingInterview: upcomingInterview || null,
       },
     });
   } catch (error) {

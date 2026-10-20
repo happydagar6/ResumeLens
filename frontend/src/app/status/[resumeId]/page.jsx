@@ -2,7 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Loader2, CheckCircle2, Circle, Clock, XCircle, Search, Building2, Briefcase } from "lucide-react";
+import {
+  Loader2,
+  CheckCircle2,
+  Circle,
+  Clock,
+  XCircle,
+  Search,
+  Building2,
+  Briefcase,
+  Calendar,
+  Video,
+  ExternalLink,
+  Sparkles,
+} from "lucide-react";
+import { format } from "date-fns";
 import { API_URL } from "@/lib/constants";
 
 export default function StatusTrackerPage() {
@@ -89,6 +103,93 @@ export default function StatusTrackerPage() {
             </div>
           </div>
         </div>
+
+        {/* ── Upcoming Interview Card (Shows when interview is scheduled) ── */}
+        {data.upcomingInterview && (
+          <div className="bg-linear-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border border-blue-500/30 rounded-2xl p-6 shadow-sm relative overflow-hidden">
+            <div className="flex items-center justify-between gap-3 flex-wrap border-b border-blue-500/20 pb-3 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                  <Calendar className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                    Upcoming Interview
+                  </span>
+                  <h2 className="text-base font-bold text-foreground">
+                    {data.upcomingInterview.title}
+                  </h2>
+                </div>
+              </div>
+
+              {data.upcomingInterview.roundType && (
+                <span className="text-xs px-2.5 py-1 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-medium capitalize">
+                  {data.upcomingInterview.roundType.replace("_", " ")} Round
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mb-4">
+              <div className="flex items-start gap-2.5">
+                <Clock className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-foreground">
+                    {format(
+                      new Date(data.upcomingInterview.scheduledAt),
+                      "EEEE, MMMM d, yyyy"
+                    )}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {format(
+                      new Date(data.upcomingInterview.scheduledAt),
+                      "h:mm a"
+                    )}{" "}
+                    ({data.upcomingInterview.duration} minutes)
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2.5">
+                <Video className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-foreground capitalize">
+                    {data.upcomingInterview.meetingType?.replace("_", " ") ||
+                      "Video Call"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {data.upcomingInterview.meetingLink
+                      ? "Online meeting room ready"
+                      : "Meeting link will be shared by interviewer"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Join Meeting Action Button */}
+            {data.upcomingInterview.meetingLink && (
+              <div className="pt-3 border-t border-blue-500/20 flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Please join 2 minutes before the scheduled time.</span>
+                </p>
+
+                <a
+                  href={
+                    data.upcomingInterview.meetingLink.startsWith("http")
+                      ? data.upcomingInterview.meetingLink
+                      : `https://${data.upcomingInterview.meetingLink}`
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-xs transition-colors"
+                >
+                  <span>Join Interview</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Tracker Section */}
         <div className="bg-white dark:bg-zinc-900 border rounded-2xl p-6 md:p-8 shadow-xs">

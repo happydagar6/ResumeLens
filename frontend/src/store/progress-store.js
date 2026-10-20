@@ -4,6 +4,8 @@ import { toast } from "sonner";
 
 // Concurrency limit for uploads
 const UPLOAD_CONCURRENCY = 5;
+let uploadAbortController = null; // Holds the active AbortController for in-flight files
+let isUploadCancelled = false;    // Persistent flag to prevent false-alarm fail toasts
 
 // ── Global Progress Store ───────────────────────────────────────────────────
 // Manages the state for long-running background tasks (uploads, AI screenings)
@@ -25,6 +27,7 @@ export const useProgressStore = create((set, get) => ({
   })),
   
   setAllDone: (done) => set({ allDone: done }),
+  setUploadedCount: (count) => set({ uploadedCount: count }),
   
   removePending: (index) => set((state) => ({
     queue: state.queue.filter((_, i) => i !== index)
@@ -45,8 +48,15 @@ export const useProgressStore = create((set, get) => ({
 
     set({ isUploading: true, uploadedCount: 0 });
     let successCount = 0;
+    isUploadCancelled = false; // Reset cancellation flag
+    uploadAbortController = new AbortController(); // Create fresh controller
 
     for (let i = 0; i < pendingIndexes.length; i += UPLOAD_CONCURRENCY) {
+      // Check if user clicked cancel button between batches
+      if (isUploadCancelled || uploadAbortController?.signal?.aborted) {
+        break;
+      }
+
       const batch = pendingIndexes.slice(i, i + UPLOAD_CONCURRENCY);
 
       // Mark as uploading
@@ -61,7 +71,9 @@ export const useProgressStore = create((set, get) => ({
           formData.append("jobId", jobId);
           formData.append("candidateName", item.name || item.file.name);
 
-          await api.upload("/resumes/upload", formData);
+          await api.upload("/resumes/upload", formData, {
+            signal: uploadAbortController?.signal,
+          });
           return idx;
         })
       );
@@ -74,15 +86,19 @@ export const useProgressStore = create((set, get) => ({
           successCount++;
           set((state) => ({ uploadedCount: state.uploadedCount + 1 }));
         } else {
+          const isAborted = isUploadCancelled || result.reason?.name === "AbortError" || uploadAbortController?.signal?.aborted;
           updateItem(idx, {
-            status: "error",
-            error: result.reason?.message || "Upload failed",
+            status: isAborted ? "pending" : "error",
+            error: isAborted ? null : (result.reason?.message || "Upload failed"),
           });
-          set((state) => ({ uploadedCount: state.uploadedCount + 1 }));
+          if (!isAborted) {
+            set((state) => ({ uploadedCount: state.uploadedCount + 1 }));
+          }
         }
       });
     }
 
+    uploadAbortController = null;
     set({ isUploading: false });
 
     if (successCount > 0) {
@@ -92,9 +108,29 @@ export const useProgressStore = create((set, get) => ({
     }
 
     const failCount = pendingIndexes.length - successCount;
-    if (failCount > 0) {
+    if (failCount > 0 && !isUploadCancelled) {
       toast.error(`${failCount} upload${failCount > 1 ? "s" : ""} failed. Check the list below.`);
     }
+  },
+
+  // Action: Cancel active upload
+  cancelUpload: () => {
+    isUploadCancelled = true;
+    // Abort in-flight network request
+    if (uploadAbortController) {
+      uploadAbortController.abort();
+      uploadAbortController = null;
+    }
+
+    set((state) => ({
+      isUploading: false,
+      queue: state.queue.map((item) =>
+        item.status === "uploading" || item.error === "Upload aborted" || item.error?.includes("abort")
+          ? { ...item, status: "pending", error: null }
+          : item
+      ),
+    }));
+    toast.info("Upload stopped by user.");
   },
 
   // ── Actions: Screening ──
@@ -105,4 +141,5 @@ export const useProgressStore = create((set, get) => ({
   removeActiveScreening: (resumeId) => set((state) => ({
     activeScreenings: state.activeScreenings.filter(id => id !== resumeId)
   })),
+  
 }));

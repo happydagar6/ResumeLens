@@ -16,6 +16,12 @@ async function uploadResume(req, res, next) {
   try {
     if (!req.file) throw new CustomError("No file uploaded", 400); // if no file is uploaded
 
+    let isClientAborted = false;
+    res.on("close", () => {
+      if (!res.writableEnded) {
+        isClientAborted = true;
+      }
+    });
     const { jobId, candidateName, candidateEmail } = req.body;
     if (!jobId || !candidateName) {
       throw new CustomError("jobId and candidateName are required", 400); // if jobId or candidateName is not provided
@@ -85,6 +91,14 @@ async function uploadResume(req, res, next) {
       }
     }
 
+    // Step 2.6: Client Cancellation Check
+    if (isClientAborted) {
+      console.log(
+        `[Upload] Client aborted upload for ${candidateName}. Skipping Cloudinary & DB save.`,
+      );
+      return;
+    }
+
     // Step 3: Upload the PDF buffer to Cloudinary
     const uploadToCloudinary = new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
@@ -103,6 +117,13 @@ async function uploadResume(req, res, next) {
     });
 
     const cloudData = await uploadToCloudinary; // upload the file to Cloudinary
+
+    if (isClientAborted) {
+      console.log(
+        `[Upload] Client aborted upload for ${candidateName} before DB save. Skipping.`,
+      );
+      return;
+    }
 
     // Step 4: Save resume to database with the Cloudinary URL
     const resume = new Resume({
@@ -292,7 +313,6 @@ async function getCandidatesDirectory(req, res, next) {
     // Provides instant O(1) lookup time when merging screening data with resumes below
     const screeningMap = new Map();
     screenings.forEach((s) => {
-
       if (s.resumeId) {
         screeningMap.set(s.resumeId.toString(), s);
       }

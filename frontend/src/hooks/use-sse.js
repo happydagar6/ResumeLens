@@ -71,6 +71,15 @@ export function useSSE(isAuthenticated = false) {
             console.error(`[SSE] Screening failed — Resume: ${resumeId}`, error);
         });
 
+        // ── Event: screening cancelled by recruiter ──────────────────────────
+        eventSource.addEventListener("screening_cancelled", (e) => {
+            const { jobId } = JSON.parse(e.data);
+            queryClient.invalidateQueries({ queryKey: RESUME_KEYS.byJob(jobId) });
+            queryClient.invalidateQueries({ queryKey: SCREENING_KEYS.byJob(jobId) });
+            toast.info("AI screening was stopped.");
+            console.log(`[SSE] Batch screening cancelled for job: ${jobId}`);
+        });
+
         // ── Handle connection errors ─────────────────────────────────────────
         // EventSource auto-reconnects on its own — this is just for logging.
         eventSource.onerror = () => {

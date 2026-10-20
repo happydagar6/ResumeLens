@@ -3,7 +3,8 @@ const { Queue, Worker } = require("bullmq");
 const { createRedisConnection } = require("../config/redis");
 const ProcessingJob = require("../models/processingJobModel");
 const { runScreeningPipeline } = require("../agents/screeningGraph");
-const { broadcastToUser } = require("./sseService");
+const Resume = require("../models/resumeModel");
+const { broadcastToUser, removeClient } = require("./sseService");
 const { createAuditLog } = require("../utils/auditLogModel");
 
 const QUEUE_NAME = "resume-screening";
@@ -28,13 +29,35 @@ const screeningWorker = new Worker(
     console.log(`[Worker] Processing job ${job.id} — resumeId: ${resumeId}`); // Log the job ID and resume ID
 
     if (processingJobId) { // If a processing job ID is provided
+
+      const currentJob = await ProcessingJob.findById(processingJobId);
+      if (currentJob && currentJob.status === "cancelled") {
+        console.log(`[Worker] Job ${job.id} was cancelled by user. Skipping.`);
+        return { success: false, cancelled: true };
+      }
+
       await ProcessingJob.findByIdAndUpdate(processingJobId, {
-        status: "processing", // Update status to processing
-        startedAt: new Date(), // Set started at to current date
-      });
+        status: "processing",
+        startedAt: new Date(),
+      })
     }
 
     const result = await runScreeningPipeline(resumeId); // Run the screening pipeline
+
+    // ── Check if user cancelled while the AI was processing ───────────────
+    if (processingJobId) {
+      const freshJob = await ProcessingJob.findById(processingJobId);
+      if (freshJob && freshJob.status === "cancelled") {
+        console.log(`[Worker] Job ${job.id} was cancelled during AI execution. Discarding result.`);
+        if (result?.screeningId) {
+          const Screening = require("../models/screeningModel");
+          await Screening.findByIdAndDelete(result.screeningId);
+        }
+        const Resume = require("../models/resumeModel");
+        await Resume.findByIdAndUpdate(resumeId, { status: "parsed" });
+        return { success: false, cancelled: true };
+      }
+    }
 
     if (!result.success) { // If the pipeline failed
       throw new Error(result.error || "Pipeline returned failure");
@@ -115,7 +138,17 @@ async function enqueueScreening({ resumeId, jobId, userId }) { // Controller met
     status: { $in: ["queued", "processing"] }, // Status: queued or processing
   });
 
-  if (existingJob) return existingJob; // Return existing job if found
+  if (existingJob) {
+    const resume = await Resume.findById(resumeId).select("status");
+    if (resume && resume.status === "parsed") {
+      await ProcessingJob.findByIdAndUpdate(existingJob._id, {
+        status: "cancelled",
+        completedAt: new Date(),
+      });
+    } else {
+      return existingJob;
+    }
+  }
 
   const processingJob = await ProcessingJob.create({
     type: "screening",
@@ -133,7 +166,7 @@ async function enqueueScreening({ resumeId, jobId, userId }) { // Controller met
       userId: userId.toString(), // User ID
       processingJobId: processingJob._id.toString(), // Processing job ID
     },
-    { jobId: `resume-${resumeId}` },
+    { jobId: `proc-${processingJob._id}` }, // Unique for every screening run!
   );
 
   return processingJob; // Return processing job
@@ -158,6 +191,22 @@ async function getQueueStats() {
   return { waiting, active, completed, failed }; // Return the statistics of the queue
 }
 
+// Remove all waiting / delayed screening jobs for a specific job from Redis
+async function cancelBatchScreening(jobId) {
+  const waitingJobs = await screeningQueue.getJobs(["waiting", "delayed"]);
+  let removedCount = 0;
+
+  for (const job of waitingJobs) {
+    if (job.data?.jobId === jobId.toString()) {
+      await job.remove(); // Remove job from Redis Queue
+      removedCount++;
+    }
+  }
+  return { removedCount };
+}
+
+
+
 async function shutdownQueue() { // Controller method to shutdown the queue
   await screeningWorker.close(); // Close the worker
   await screeningQueue.close(); // Close the queue
@@ -166,6 +215,7 @@ async function shutdownQueue() { // Controller method to shutdown the queue
 module.exports = { // Export the controller methods
   enqueueScreening, // Controller method to enqueue a screening job
   enqueueBatchScreening, // Controller method to enqueue a batch screening job
+  cancelBatchScreening, // Controller method to cancel screenings
   getQueueStats, // Controller method to get the statistics of the queue
   shutdownQueue, // Controller method to shutdown the queue
 };

@@ -146,6 +146,27 @@ export function useBulkScreening() {
   })
 }
 
+// POST /api/pipeline/cancel-batch — halts waiting BullMQ jobs and resets resume 
+// statuses to 'parsed'
+export function useCancelBatchScreening() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ jobId }) => api.post("/pipeline/cancel-batch", { jobId }),
+    onSuccess: (data, variables) => {
+      // Refetch the resumes list so candidate cards instantly return to "parsed" (ready to screen)
+      queryClient.invalidateQueries({ queryKey: RESUME_KEYS.byJob(variables.jobId) });
+      queryClient.invalidateQueries({ queryKey: SCREENING_KEYS.byJob(variables.jobId) });
+      queryClient.invalidateQueries({ queryKey: ["screenings"] });
+      toast.success(data?.message || "Batch screening cancelled successfully");
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to cancel screening");
+    },
+  });
+}
+
+
 // ── Polling Hook (Pipeline Status Tracker) ────────────────────────────────────
 
 // GET /api/pipeline/status/:resumeId — polls screening status every 3s until completion

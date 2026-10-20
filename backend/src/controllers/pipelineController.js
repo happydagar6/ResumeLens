@@ -14,7 +14,7 @@ const { CustomError } = require("../utils/errors");
 // Runs the full LangGraph screening pipeline for a single resume.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const { enqueueScreening, enqueueBatchScreening, getQueueStats } = require("../services/backgroundQueue");
+const { enqueueScreening, enqueueBatchScreening, cancelBatchScreening, getQueueStats } = require("../services/backgroundQueue");
 
 async function screenSingle(req, res, next) {
     try {
@@ -206,5 +206,50 @@ async function getPipelineStatus(req, res, next) {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/pipeline/cancel-batch
+// Body: { jobId: string }
+// Cancels all waiting BullMQ screening jobs for a job and resets resume statuses.
+// ─────────────────────────────────────────────────────────────────────────────
+async function cancelBatch(req, res, next) {
+    try {
+        const { jobId } = req.body;
+        if (!jobId) throw new CustomError("jobId is required", 400);
 
-module.exports = { screenSingle, screenBatch, getPipelineStatus, rescreenSingle };
+        const job = await Job.findById(jobId);
+        if (!job) throw new CustomError("Job not found", 404);
+        if (req.user.role !== "admin" && job.createdBy?.toString() !== req.user.id) {
+            throw new CustomError("Access denied", 403);
+        }
+
+        // Remove pending jobs from BullMQ Redis queue
+        const { removedCount } = await cancelBatchScreening(jobId);
+
+        // Reset unifinshed resume in mongodb back to "parsed" so they can be screened again later
+        const resetResult = await Resume.updateMany(
+            { jobId, status: "screening"},
+            { status: "parsed" },
+        );
+
+        // Mark background job documents as "cancelled"
+        const ProcessingJob = require("../models/processingJobModel");
+        await ProcessingJob.updateMany(
+            { jobId, status: { $in: ["queued", "processing"] } },
+            { status: "cancelled", completedAt: new Date() }
+        );
+
+        // Send instant SSE update to the recruiter's UI
+        const { broadcastToUser } = require("../services/sseService");
+        broadcastToUser(req.user.id, "screening_cancelled", { jobId });
+        
+        return response(res, 200, {
+            jobId,
+            removedFromQueue: removedCount,
+            resumesReset: resetResult.modifiedCount,
+        }, "Screening cancelled successfully");
+    } catch (error) {
+        next(error);
+    }
+}
+
+module.exports = { screenSingle, screenBatch, getPipelineStatus, rescreenSingle, cancelBatch };

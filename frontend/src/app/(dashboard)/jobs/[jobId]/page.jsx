@@ -8,7 +8,7 @@ import BiasReport from "@/components/dashboard/bias-report";
 import { ShieldCheck } from "lucide-react";
 import { useJob, useDeleteJob, useAssignHiringManager } from "@/hooks/use-jobs";
 import { useResumesByJob, useDeleteResume } from "@/hooks/use-resume";
-import { useRunScreening, useBulkScreening } from "@/hooks/use-screening";
+import { useRunScreening, useBulkScreening, useCancelBatchScreening } from "@/hooks/use-screening";
 import { RESUME_KEYS } from "@/hooks/use-resume";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useHiringManagers } from "@/hooks/use-users";
@@ -46,6 +46,7 @@ import {
   Zap,
   Copy,
   Check,
+  StopCircle,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -90,6 +91,7 @@ export default function JobDetailPage() {
   const deleteResumeMutation = useDeleteResume(jobId);
   const screenMutation = useRunScreening();
   const bulkMutation = useBulkScreening();
+  const cancelBatchMutation = useCancelBatchScreening();
   const assignHMMutation = useAssignHiringManager(jobId);
   const analyzeBiasMutation = useAnalyzeBias(jobId);
 
@@ -404,23 +406,42 @@ export default function JobDetailPage() {
           <h2 className="text-lg font-semibold">
             Uploaded Resumes ({resumes.length})
           </h2>
-          {canRunScreening &&
-            resumes.filter((r) => r.status === "parsed").length > 0 && (
+          <div className="flex items-center gap-2">
+            {canRunScreening &&
+              resumes.filter((r) => r.status === "parsed").length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isBulkScreeningDisabled}
+                  onClick={() => bulkMutation.mutate({ jobId })}
+                >
+                  {bulkMutation.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Zap className="mr-2 h-4 w-4" />
+                  )}
+                  Screen All (
+                  {resumes.filter((r) => r.status === "parsed").length})
+                </Button>
+              )}
+
+            {/* STOP SCREENING BUTTON: Shown when any resume is actively screening */}
+            {canRunScreening && isScreeningAny && (
               <Button
-                variant="outline"
+                variant="destructive"
                 size="sm"
-                disabled={isBulkScreeningDisabled}
-                onClick={() => bulkMutation.mutate({ jobId })}
+                disabled={cancelBatchMutation.isPending}
+                onClick={() => cancelBatchMutation.mutate({ jobId })}
               >
-                {bulkMutation.isPending ? (
+                {cancelBatchMutation.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <Zap className="mr-2 h-4 w-4" />
+                  <StopCircle className="mr-2 h-4 w-4" />
                 )}
-                Screen All (
-                {resumes.filter((r) => r.status === "parsed").length})
+                Stop Screening
               </Button>
             )}
+          </div>
         </div>
         {resumes.length === 0 ? (
           <p className="text-sm text-muted-foreground">

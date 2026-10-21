@@ -30,3 +30,7 @@ logs/
 # Uploads
 backend/src/uploads/*
 !backend/src/uploads/.gitkeep
+
+# Temporary / Local Test Scripts
+test-*.js
+backend/test-*.js

@@ -12,13 +12,14 @@ const { cloudinary } = require("../config/cloudinary");      // Permanent cloud 
 const streamifier = require("streamifier");                 // Converts buffer into readable stream
 const { enqueueScreening } = require("../services/backgroundQueue"); // BullMQ queue trigger
 const { CustomError } = require("../utils/errors");
+const { publicApplyLimiter, publicReadLimiter } = require("../middleware/rateLimiter");
 
 
 const router = express.Router();
 
 // GET /api/public/status/:resumeId
 // Public, unauthenticated endpoint for candidates to track their application
-router.get("/status/:resumeId", async (req, res, next) => {
+router.get("/status/:resumeId", publicReadLimiter, async (req, res, next) => {
   try {
     const resume = await Resume.findById(req.params.resumeId)
       .populate("jobId", "title company")
@@ -86,7 +87,7 @@ router.get("/status/:resumeId", async (req, res, next) => {
 
 // GET /api/public/jobs/:jobId
 // Fetches clean, public details about an open job for candidates to read
-router.get("/jobs/:jobId", async (req, res, next) => {
+router.get("/jobs/:jobId", publicReadLimiter, async (req, res, next) => {
   try {
     const job = await Job.findById(req.params.jobId)
       // Only select public-safe fields (Do NOT expose internal notes or user IDs)
@@ -117,7 +118,7 @@ router.get("/jobs/:jobId", async (req, res, next) => {
 
 // POST /api/public/apply/:jobId
 // Public candidate application submission
-router.post("/apply/:jobId", upload.single("resume"), async (req, res, next) => {
+router.post("/apply/:jobId", publicApplyLimiter, upload.single("resume"), async (req, res, next) => {
   try {
     if (!req.file) {
       throw new CustomError("Please upload your resume in PDF format.", 400);

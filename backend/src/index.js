@@ -11,7 +11,7 @@ const xssMiddleware = require('./middleware/xssMiddleware');
 const { connectDB } = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 const requestLogger = require('./middleware/requestLogger');
-const rateLimiter = require('./middleware/rateLimiter');
+const { globalRateLimiter } = require('./middleware/rateLimiter');
 const authRoutes = require('./routes/authRoutes');
 const jobsRoutes = require('./routes/jobsRoutes');
 const resumesRoutes = require('./routes/resumeRoutes');
@@ -49,7 +49,7 @@ app.use(mongoSanitizeMiddleware);
 app.use(xssMiddleware);
 
 app.use(requestLogger); // 6- log incoming requests: custom middleware to log details about each incoming HTTP request (e.g., method, URL, timestamp).
-app.use(rateLimiter); // 7- limit request rates: middleware to prevent abuse by limiting the number of requests from a single IP address within a specific time window.
+app.use(globalRateLimiter); // 7- limit request rates: distributed Redis-backed rate limiter
 app.use("/uploads", express.static("uploads")); // 8- serve static files: makes files in the "uploads" directory accessible via HTTP.
 
 // Root route

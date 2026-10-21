@@ -1,6 +1,7 @@
 // src/routes/screeningRoutes.js
 
 const express = require("express");
+const { aiChatLimiter, emailDispatchLimiter } = require("../middleware/rateLimiter");
 const {
   screenResume,
   getScreeningResults,
@@ -55,7 +56,7 @@ router.delete("/:id/notes/:noteId", authorize("hiring_manager", "recruiter", "ad
 
 
 // CHAT: conversational AI about a specific candidate's resume
-router.post("/:id/chat", authorize("hiring_manager", "recruiter", "admin"), chatAboutScreening);
+router.post("/:id/chat", authorize("hiring_manager", "recruiter", "admin"), aiChatLimiter, chatAboutScreening);
 
 // DECISION: hiring managers, recruiters, and admins can record a decision
 router.put(
@@ -75,6 +76,7 @@ router.post(
 router.post(
   "/:id/send-email",
   authorize("hiring_manager", "recruiter", "admin"),
+  emailDispatchLimiter,
   sendScreeningEmail,
 );
 

@@ -10,6 +10,7 @@ const {
 } = require("../controllers/interviewController");
 const authMiddleware = require("../middleware/authMiddleware");
 const authorize = require("../middleware/authorize");
+const { interviewScheduleLimiter } = require("../middleware/rateLimiter");
 
 const router = express.Router();
 
@@ -31,7 +32,7 @@ router.get("/candidate/:resumeId", getCandidateInterviews);
 
 // POST /api/interviews
 // Schedules a new interview round, triggers stage update, audit log & email
-router.post("/", scheduleInterview);
+router.post("/", interviewScheduleLimiter, scheduleInterview);
 
 // PUT /api/interviews/:id
 // Reschedules an interview or updates its status (e.g. marks as completed)

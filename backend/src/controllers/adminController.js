@@ -5,6 +5,7 @@
 const mongoose = require("mongoose");
 const User = require("../models/userModel");
 const Job = require("../models/jobModel");
+const AuditLog = require("../models/auditLogModel");
 const { response } = require("../utils/response");
 const { CustomError } = require("../utils/errors");
 const { z } = require("zod");
@@ -114,8 +115,23 @@ async function updateUserRole(req, res, next) {
 
         if(!target) throw new CustomError("User not found in your organization", 404);
 
+        const previousRole = target.role;
         target.role = role; // Update the role
         await target.save(); // Save the change
+
+        // Admin Audit Logging
+        await AuditLog.create({
+            action: "USER_ROLE_CHANGED",
+            performedBy: req.user.id,
+            targetUser: target._id,
+            organizationId: req.user.organizationId,
+            metadata: {
+                previousRole,
+                newRole: role,
+                targetUserName: target.name,
+                targetUserEmail: target.email,
+            },
+        });
 
         response(res, 200, {
             user: {
@@ -156,6 +172,18 @@ async function deactivateUser(req, res, next) {
         target.isDeactivated = true; // soft-deactivate the user
         await target.save(); // Save the change
 
+        // Admin Audit Logging
+        await AuditLog.create({
+            action: "USER_DEACTIVATED",
+            performedBy: req.user.id,
+            targetUser: target._id,
+            organizationId: req.user.organizationId,
+            metadata: {
+                targetUserName: target.name,
+                targetUserEmail: target.email,
+            },
+        });
+
         response(res, 200, null, `${target.name} has been deactivated successfully`); // send response
     } catch (error) { // Wrap the entire controller function in a try-catch block to handle potential errors
         next(error); // Pass the error to the next error handler middleware
@@ -185,10 +213,78 @@ async function reactivateUser(req, res, next) { // Wrap the entire controller fu
         target.isDeactivated = false;
         await target.save();
 
+        // Admin Audit Logging
+        await AuditLog.create({
+            action: "USER_REACTIVATED",
+            performedBy: req.user.id,
+            targetUser: target._id,
+            organizationId: req.user.organizationId,
+            metadata: {
+                targetUserName: target.name,
+                targetUserEmail: target.email,
+            },
+        });
+
         response(res, 200, null, `${target.name} has been reactivated successfully`);
     } catch (error) {
         next(error);
     }
 }
 
-module.exports = { getAdminUsers, updateUserRole, deactivateUser, reactivateUser };
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/admin/audit-logs
+// Lists organization-wide administrative audit logs:
+//   - Filtered by req.user.organizationId
+//   - Filtered by action (?action=USER_ROLE_CHANGED) if provided
+//   - Populates performedBy (name, email, role)
+//   - Populates targetUser (name, email, role)
+//   - Supports pagination (?page=1&limit=20)
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function getAdminAuditLogs(req, res, next) {
+    try {
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+        const skip = (page - 1) * limit;
+
+        const filter = {};
+        if (req.user.organizationId) {
+            filter.organizationId = req.user.organizationId;
+        }
+
+        if (req.query.action) {
+            filter.action = req.query.action;
+        }
+
+        const [logs, total] = await Promise.all([
+            AuditLog.find(filter)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .populate("performedBy", "name email role")
+                .populate("targetUser", "name email role")
+                .lean(),
+            AuditLog.countDocuments(filter),
+        ]);
+
+        response(res, 200, {
+            logs,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit),
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+module.exports = {
+    getAdminUsers,
+    updateUserRole,
+    deactivateUser,
+    reactivateUser,
+    getAdminAuditLogs,
+};

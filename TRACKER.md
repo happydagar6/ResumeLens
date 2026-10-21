@@ -163,6 +163,31 @@ flowchart TD
 - [x] **Step 8.7.4: Verify Pre-Multer Protection**
   - Confirm that blocked requests on `/api/public/apply` never reach Multer buffer parsing
 
+### Phase 8.8: Production Security Hygiene & Admin Audit Trail
+- [x] **Step 8.8.1: Production Error Masking (`errorHandler.js`)**
+  - Configured `backend/src/middleware/errorHandler.js` to mask raw 500 error messages (e.g. database connection strings or internal driver exceptions) as `"Internal Server Error"` when `NODE_ENV === "production"`.
+- [x] **Step 8.8.2: Decoupled Audit Log Schema (`auditLogModel.js`)**
+  - Updated `backend/src/models/auditLogModel.js` to make candidate fields (`resumeId`, `jobId`) optional.
+  - Added `targetUser` (ref User) and `organizationId` (ref Organization).
+  - Added admin event actions: `USER_ROLE_CHANGED`, `USER_DEACTIVATED`, `USER_REACTIVATED`.
+- [x] **Step 8.8.3: Admin Action Logging (`adminController.js`)**
+  - Instrumented `updateUserRole` with `USER_ROLE_CHANGED` logging (capturing old role, new role, target user).
+  - Instrumented `deactivateUser` with `USER_DEACTIVATED` logging.
+  - Instrumented `reactivateUser` with `USER_REACTIVATED` logging.
+- [x] **Step 8.8.4: Organization Admin Audit Trail Query API (`adminRoutes.js`)**
+  - Implemented `getAdminAuditLogs` in `backend/src/controllers/adminController.js` with pagination and action filtering.
+  - Mounted `GET /api/admin/audit-logs` under admin role protection in `backend/src/routes/adminRoutes.js`.
+
+### Phase 8.9: Authorization Boundary & IDOR Hardening
+- [x] **Step 8.9.1: Fix Pipeline Status IDOR (`pipelineController.js`)**
+  - Added parent-job ownership and organization admin verification to `GET /api/pipeline/status/:resumeId`.
+  - Prevented arbitrary recruiters from querying other recruiters' candidates.
+- [x] **Step 8.9.2: Fix Talent Pool IDOR Bypass (`resumeController.js`)**
+  - Validated that requested `?jobId=` in `getCandidatesDirectory` is strictly included within `accessibleJobIds`.
+  - Scoped admin and non-admin queries to `organizationId`.
+- [x] **Step 8.9.3: Multi-Tenant Tenant Isolation Hardening (`jobsController.js` & `statsController.js`)**
+  - Bound admin operations (`getJobById`, `updateJob`, `deleteJob`, `assignJob`, `getOverviewStats`, `getJobStats`) to `req.user.organizationId` to prevent cross-company data exposure.
+
 ---
 
 ## 6. Active Bugs & Blockers Log
@@ -173,7 +198,11 @@ flowchart TD
 | **SEC-02** | High | Single in-memory rate limiter does not share state across cluster/restarts | Resolved | Migrated to Redis-backed distributed store with Memory fallback |
 | **SEC-03** | High | Unauthenticated `/api/public/apply/:jobId` triggers Multer buffer + OpenAI without rate limit | Resolved | Added pre-Multer IP rate limiter preventing RAM buffer and AI drain |
 | **SEC-04** | Medium| Uncapped SSE connections on `/api/events` per user | Resolved | Implemented FIFO max-3 connection pool with graceful eviction |
+| **SEC-05** | Low | Unmasked 500 errors could leak database schema/driver details in production | Resolved | Added environment-based 500 message masking in `errorHandler.js` |
+| **SEC-06** | Medium| Lack of persistent audit trail for admin actions (role changes, deactivations) | Resolved | Decoupled `AuditLog` model and wired admin activity logging + query API |
+| **SEC-07** | High | IDOR in `GET /api/pipeline/status/:resumeId` allowed any user to inspect candidate AI scores | Resolved | Verified parent job ownership and tenant admin authorization before returning status |
+| **SEC-08** | High | Query param `?jobId=` in `getCandidatesDirectory` bypassed `accessibleJobIds` filter | Resolved | Enforced strict inclusion check `accessibleJobIds.includes(jobId)` and org tenancy |
 
 ---
 
-*Last Updated: October 20, 2026*
+*Last Updated: October 21, 2026*

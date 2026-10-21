@@ -2,21 +2,40 @@ const mongoose = require("mongoose");
 
 const auditLogSchema = new mongoose.Schema(
   {
+    // Candidate & Job References (Populated for resume/interview actions, null for admin actions)
     resumeId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Resume",
-      required: true,
+      required: false,
+      default: null,
       index: true,
     },
     jobId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Job",
-      required: true,
+      required: false,
+      default: null,
+    },
+    // Target user for administrative actions (e.g. role update, deactivation)
+    targetUser: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: false,
+      default: null,
+    },
+    // Multi-tenant organization scope
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: false,
+      default: null,
+      index: true,
     },
     action: {
       type: String,
       required: true,
       enum: [
+        // Candidate Lifecycle Events
         "UPLOADED",
         "SCREENED",
         "DECISION_CHANGED",
@@ -26,6 +45,10 @@ const auditLogSchema = new mongoose.Schema(
         "INTERVIEW_SCHEDULED",
         "INTERVIEW_RESCHEDULED",
         "INTERVIEW_CANCELLED",
+        // Admin Organization Events
+        "USER_ROLE_CHANGED",
+        "USER_DEACTIVATED",
+        "USER_REACTIVATED",
       ],
     },
     performedBy: {

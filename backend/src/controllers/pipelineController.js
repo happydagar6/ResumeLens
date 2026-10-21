@@ -176,10 +176,23 @@ async function screenBatch(req, res, next) {
 // ─────────────────────────────────────────────────────────────────────────────
 async function getPipelineStatus(req, res, next) {
     try {
-        const resume = await Resume.findById(req.params.resumeId).select(
-            "candidateName status screeningError jobId"
-        );
+        const resume = await Resume.findById(req.params.resumeId)
+            .select("candidateName status screeningError jobId")
+            .populate("jobId", "createdBy assignedTo organizationId");
         if (!resume) throw new CustomError("Resume not found", 404);
+
+        // Security / IDOR Guard: Verify requester owns or is assigned to the parent job
+        const job = resume.jobId;
+        const isOwner = job?.createdBy?.toString() === req.user.id;
+        const isAssigned = job?.assignedTo?.some((uid) => uid.toString() === req.user.id);
+        const isOrgAdmin = req.user.role === "admin" && (
+            !job?.organizationId || !req.user.organizationId ||
+            job.organizationId.toString() === req.user.organizationId.toString()
+        );
+
+        if (!isOrgAdmin && !isOwner && !isAssigned) {
+            throw new CustomError("Access denied", 403);
+        }
 
         const Screening = require("../models/screeningModel");
         const ProcessingJob = require("../models/processingJobModel");

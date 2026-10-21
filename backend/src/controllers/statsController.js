@@ -28,17 +28,15 @@ async function getOverviewStats(req, res, next) {
     //
     // For non-admins, we resolve the user's job IDs once here and reuse
     // them in every sub-query below — avoids a $lookup in each aggregation.
-    const jobFilter = isAdmin ? {} : { createdBy: req.user.id };
+    const jobFilter = isAdmin
+      ? (req.user.organizationId ? { organizationId: req.user.organizationId } : {})
+      : { createdBy: req.user.id };
 
-    let resumeFilter = {};
-    let screeningMatch = {};
-
-    if (!isAdmin) {
-      const userJobs = await Job.find(jobFilter).select("_id");
-      const jobIds = userJobs.map((j) => j._id);
-      resumeFilter = { jobId: { $in: jobIds } };
-      screeningMatch = { jobId: { $in: jobIds } };
-    }
+    // Resolve user's / organization's accessible job IDs for strictly scoped analytics
+    const scopedJobs = await Job.find(jobFilter).select("_id");
+    const jobIds = scopedJobs.map((j) => j._id);
+    const resumeFilter = { jobId: { $in: jobIds } };
+    const screeningMatch = { jobId: { $in: jobIds } };
 
     // ── Run all independent DB queries in parallel ───────────────────────
     const [
@@ -205,15 +203,17 @@ async function getJobStats(req, res, next) {
 
     // Confirm the job exists
     const job = await Job.findById(jobId).select(
-      "title company status type description skills createdAt createdBy",
+      "title company status type description skills createdAt createdBy organizationId",
     );
     if (!job) throw new CustomError("Job not found", 404);
 
-    // Ownership check: only the job creator or an admin can view its stats
-    if (
-      req.user.role !== "admin" &&
-      job.createdBy?.toString() !== req.user.id
-    ) {
+    // Ownership check: only the job creator or organization admin can view its stats
+    const isOwner = job.createdBy?.toString() === req.user.id;
+    const isOrgAdmin = req.user.role === "admin" && (
+      !job.organizationId || !req.user.organizationId ||
+      job.organizationId.toString() === req.user.organizationId.toString()
+    );
+    if (!isOrgAdmin && !isOwner) {
       throw new CustomError("Access denied", 403);
     }
 

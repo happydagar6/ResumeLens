@@ -178,11 +178,15 @@ async function getJobById(req, res, next) {
             .populate("assignedTo", "name email role");
         if (!job) throw new CustomError("Job not found", 404);
 
-        // Access: creator, admin, or an assigned hiring manager
+        // Access: creator, organization admin, or an assigned hiring manager
         const isOwner = job.createdBy?.toString() === req.user.id;
         const isAssigned = job.assignedTo?.some((u) => u._id.toString() === req.user.id);
+        const isOrgAdmin = req.user.role === "admin" && (
+            !job.organizationId || !req.user.organizationId ||
+            job.organizationId.toString() === req.user.organizationId.toString()
+        );
 
-        if (req.user.role !== "admin" && !isOwner && !isAssigned) {
+        if (!isOrgAdmin && !isOwner && !isAssigned) {
             throw new CustomError("Access denied", 403);
         }
 
@@ -200,10 +204,14 @@ async function updateJob(req, res, next) {
         // findOneAndUpdate with this filter returns null if the job doesn't
         // exist OR if it exists but belongs to someone else — both map to 404
         // so we don't leak information about whether a job exists.
-        const filter =
-            req.user.role === "admin"
-                ? { _id: req.params.id }
-                : { _id: req.params.id, createdBy: req.user.id };
+        const filter = { _id: req.params.id };
+        if (req.user.role === "admin") {
+            if (req.user.organizationId) {
+                filter.organizationId = req.user.organizationId;
+            }
+        } else {
+            filter.createdBy = req.user.id;
+        }
 
         const job = await Job.findOneAndUpdate(filter, data, {
             returnDocument: "after",
@@ -218,10 +226,14 @@ async function updateJob(req, res, next) {
 
 async function deleteJob(req, res, next) {
     try {
-        const filter =
-            req.user.role === "admin"
-                ? { _id: req.params.id }
-                : { _id: req.params.id, createdBy: req.user.id };
+        const filter = { _id: req.params.id };
+        if (req.user.role === "admin") {
+            if (req.user.organizationId) {
+                filter.organizationId = req.user.organizationId;
+            }
+        } else {
+            filter.createdBy = req.user.id;
+        }
 
         const job = await Job.findOneAndDelete(filter);
         if (!job) throw new CustomError("Job not found or access denied", 404);
@@ -265,19 +277,27 @@ async function assignJob(req, res, next) {
             throw new CustomError('action must be "add" or "remove"', 400);
         }
 
-        // Only the job creator or admin can assign hiring managers
-        const filter =
-            req.user.role === "admin"
-                ? { _id: req.params.id }
-                : { _id: req.params.id, createdBy: req.user.id };
+        // Only the job creator or org admin can assign hiring managers
+        const filter = { _id: req.params.id };
+        if (req.user.role === "admin") {
+            if (req.user.organizationId) {
+                filter.organizationId = req.user.organizationId;
+            }
+        } else {
+            filter.createdBy = req.user.id;
+        }
 
         const job = await Job.findOne(filter);
         if (!job) throw new CustomError("Job not found or access denied", 404);
 
-        // Verify the user being assigned exists and is a hiring_manager
+        // Verify the user being assigned exists, is in the same org, and is a hiring_manager
         const User = require("../models/userModel");
-        const targetUser = await User.findById(userId).select("name email role");
-        if (!targetUser) throw new CustomError("User not found", 404);
+        const userFilter = { _id: userId };
+        if (req.user.organizationId) {
+            userFilter.organizationId = req.user.organizationId;
+        }
+        const targetUser = await User.findOne(userFilter).select("name email role");
+        if (!targetUser) throw new CustomError("User not found in your organization", 404);
         if (targetUser.role !== "hiring_manager") {
             throw new CustomError("Only users with role 'hiring_manager' can be assigned", 400);
         }

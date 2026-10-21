@@ -31,12 +31,14 @@ async function uploadResume(req, res, next) {
     const job = await Job.findById(jobId); // find the job by ID
     if (!job) throw new CustomError("Job not found", 404); // if job not found
 
-    // Ownership check: only the job owner or admin can upload resumes to this job
-    if (
-      req.user.role !== "admin" &&
-      job.createdBy?.toString() !== req.user.id
-    ) {
-      throw new CustomError("Access denied — you do not own this job", 403); // if access is denied
+    // Ownership check: only the job owner or organization admin can upload resumes to this job
+    const isOwner = job.createdBy?.toString() === req.user.id;
+    const isOrgAdmin = req.user.role === "admin" && (
+      !job.organizationId || !req.user.organizationId ||
+      job.organizationId.toString() === req.user.organizationId.toString()
+    );
+    if (!isOrgAdmin && !isOwner) {
+      throw new CustomError("Access denied — you do not own this job", 403);
     }
 
     // Step 1: Parse PDF text DIRECTLY from memory buffer
@@ -155,12 +157,15 @@ async function getResumesByJob(req, res, next) {
     const job = await Job.findById(jobId); // find the job by ID
     if (!job) throw new CustomError("Job not found", 404); // if job not found
 
-    const isOwner = job.createdBy?.toString() === req.user.id; // check if the user is the owner
+    const isOwner = job.createdBy?.toString() === req.user.id;
     const isAssigned = job.assignedTo?.some(
       (uid) => uid.toString() === req.user.id,
-    ); // check if the user is assigned to the job
-    if (req.user.role !== "admin" && !isOwner && !isAssigned) {
-      // if the user is not the owner, not assigned, and not an admin
+    );
+    const isOrgAdmin = req.user.role === "admin" && (
+      !job.organizationId || !req.user.organizationId ||
+      job.organizationId.toString() === req.user.organizationId.toString()
+    );
+    if (!isOrgAdmin && !isOwner && !isAssigned) {
       throw new CustomError("Access denied", 403);
     }
 
@@ -178,12 +183,18 @@ async function getResumeById(req, res, next) {
     if (!resume) throw new CustomError("Resume not found", 404); // if resume not found
 
     // Verify the parent job is accessible by this user
-    const job = await Job.findById(resume.jobId); // find the job by ID
-    if (
-      job &&
-      req.user.role !== "admin" &&
-      job.createdBy?.toString() !== req.user.id
-    ) {
+    const job = await Job.findById(resume.jobId);
+    if (!job) throw new CustomError("Associated job not found", 404);
+
+    const isOwner = job.createdBy?.toString() === req.user.id;
+    const isAssigned = job.assignedTo?.some(
+      (uid) => uid.toString() === req.user.id,
+    );
+    const isOrgAdmin = req.user.role === "admin" && (
+      !job.organizationId || !req.user.organizationId ||
+      job.organizationId.toString() === req.user.organizationId.toString()
+    );
+    if (!isOrgAdmin && !isOwner && !isAssigned) {
       throw new CustomError("Access denied", 403);
     }
 
@@ -200,14 +211,16 @@ async function deleteResume(req, res, next) {
     if (!resume) throw new CustomError("Resume not found", 404); // if resume not found
 
     // Verify the parent job is accessible by this user
-    const job = await Job.findById(resume.jobId); // find the job by ID
-    if (
-      job &&
-      req.user.role !== "admin" &&
-      job.createdBy?.toString() !== req.user.id
-    ) {
-      // if the user is not the owner, not assigned, and not an admin
-      throw new CustomError("Access denied", 403); // if access is denied
+    const job = await Job.findById(resume.jobId);
+    if (!job) throw new CustomError("Associated job not found", 404);
+
+    const isOwner = job.createdBy?.toString() === req.user.id;
+    const isOrgAdmin = req.user.role === "admin" && (
+      !job.organizationId || !req.user.organizationId ||
+      job.organizationId.toString() === req.user.organizationId.toString()
+    );
+    if (!isOrgAdmin && !isOwner) {
+      throw new CustomError("Access denied", 403);
     }
 
     // Cascade delete: Remove the physical file from Cloudinary
@@ -250,20 +263,25 @@ async function getCandidatesDirectory(req, res, next) {
       page = 1,
     } = req.query;
 
-    // 1. Role-based job access scope
-    // Non-admin recruiters can only see candidates for jobs they created or are assigned to.
-    // Admins have global visibility across all jobs in the company.
+    // 1. Role-based job access scope with organization isolation
     let jobQuery = {};
-    if (req.user.role !== "admin") {
+    if (req.user.role === "admin") {
+      if (req.user.organizationId) {
+        jobQuery.organizationId = req.user.organizationId;
+      }
+    } else {
       jobQuery = {
         $or: [{ createdBy: req.user.id }, { assignedTo: req.user.id }],
       };
+      if (req.user.organizationId) {
+        jobQuery.organizationId = req.user.organizationId;
+      }
     }
 
     const accessibleJobs = await Job.find(jobQuery).select(
       "_id title company department location",
     );
-    const accessibleJobIds = accessibleJobs.map((j) => j._id);
+    const accessibleJobIds = accessibleJobs.map((j) => j._id.toString());
 
     // If recruiter has no accessible jobs, return an empty candidate list immediately
     if (accessibleJobIds.length === 0) {
@@ -279,11 +297,23 @@ async function getCandidatesDirectory(req, res, next) {
       });
     }
 
-    // 2. Build Resume query filter
-    // If a specific jobId is selected from the dropdown, filter by that job;
-    // otherwise restrict to all jobs accessible to this recruiter.
+    // 2. Build Resume query filter with strict IDOR prevention
+    let targetJobIds;
+    if (jobId && jobId !== "all") {
+      // Security Guard: Verify the requested jobId is in the caller's authorized jobs list
+      if (!accessibleJobIds.includes(jobId.toString())) {
+        throw new CustomError(
+          "Access denied: You do not have permission to view candidates for this job",
+          403
+        );
+      }
+      targetJobIds = jobId;
+    } else {
+      targetJobIds = { $in: accessibleJobIds };
+    }
+
     const resumeFilter = {
-      jobId: jobId && jobId !== "all" ? jobId : { $in: accessibleJobIds },
+      jobId: targetJobIds,
     };
 
     // Text search filter: case-insensitive regex match across Candidate Name, Email, or Extracted Skills

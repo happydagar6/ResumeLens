@@ -63,6 +63,13 @@ function NavLinks({ onClick }) {
       href: "/admin/users",
       label: "User Management",
       icon: UserCog,
+      exact: true,
+      show: isAdmin,
+    },
+    {
+      href: "/admin/users/audit-logs",
+      label: "Audit Logs",
+      icon: ShieldAlert,
       exact: false,
       show: isAdmin,
     },

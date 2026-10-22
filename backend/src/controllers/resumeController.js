@@ -11,10 +11,14 @@ const { response } = require("../utils/response");
 const { CustomError } = require("../utils/errors");
 const { cloudinary, deleteFromCloudinary } = require("../config/cloudinary");
 const streamifier = require("streamifier");
+const { isPdfBuffer } = require("../config/multer");
 
 async function uploadResume(req, res, next) {
   try {
     if (!req.file) throw new CustomError("No file uploaded", 400); // if no file is uploaded
+    if (!isPdfBuffer(req.file.buffer)) {
+      throw new CustomError("Invalid file signature. File is not a valid PDF document.", 400);
+    }
 
     let isClientAborted = false;
     res.on("close", () => {

@@ -61,8 +61,10 @@ export default function DashboardLayout({ children }) {
               <MobileSidebar onClose={() => actions.setSidebarOpen(false)} />
             </SheetContent>
           </Sheet>
-          <div className="flex-1" />
-          <DashboardNavbar />
+          {/* Full-width responsive navbar across the header */}
+          <div className="flex-1 min-w-0">
+            <DashboardNavbar />
+          </div>
         </div>
       </header>
 

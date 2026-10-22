@@ -88,3 +88,27 @@ export function useReactivateUser() {
         },
     });
 }
+
+// ── useAdminAuditLogs ─────────────────────────────────────────────────────────
+// Fetches the security audit trail with pagination and action filtering.
+// Only accessible by organization admins.
+export function useAdminAuditLogs(params = {}) {
+    const query = new URLSearchParams();
+    if (params.page) query.set("page", params.page);
+    if (params.limit) query.set("limit", params.limit);
+    if (params.action && params.action !== "all") query.set("action", params.action);
+
+    const { data, isLoading, isError, refetch } = useQuery({
+        queryKey: ["admin", "audit-logs", params],
+        queryFn: () => api.get(`/admin/audit-logs?${query.toString()}`),
+        staleTime: 30 * 1000, // cache for 30 seconds
+    });
+
+    return {
+        logs: data?.data?.logs ?? [],
+        pagination: data?.data?.pagination ?? null,
+        isLoading,
+        isError,
+        refetch,
+    };
+}

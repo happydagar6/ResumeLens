@@ -6,6 +6,7 @@ const Resume = require("../models/resumeModel");             // To save candidat
 const Screening = require("../models/screeningModel");
 const Interview = require("../models/interviewModel");
 const upload = require("../config/multer");                 // Multer memory storage (req.file.buffer)
+const { isPdfBuffer } = require("../config/multer");
 const { parsePDF } = require("../services/pdfParserService"); // In-memory PDF text extraction
 const { extractEntities } = require("../services/entityExtractorAgent"); // AI skill/experience extraction
 const { cloudinary } = require("../config/cloudinary");      // Permanent cloud storage
@@ -122,6 +123,9 @@ router.post("/apply/:jobId", publicApplyLimiter, upload.single("resume"), async 
   try {
     if (!req.file) {
       throw new CustomError("Please upload your resume in PDF format.", 400);
+    }
+    if (!isPdfBuffer(req.file.buffer)) {
+      throw new CustomError("Invalid file signature. File is not a valid PDF document.", 400);
     }
 
     const { candidateName, candidateEmail, candidatePhone } = req.body;

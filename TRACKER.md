@@ -177,7 +177,6 @@ flowchart TD
 - [x] **Step 8.8.4: Organization Admin Audit Trail Query API (`adminRoutes.js`)**
   - Implemented `getAdminAuditLogs` in `backend/src/controllers/adminController.js` with pagination and action filtering.
   - Mounted `GET /api/admin/audit-logs` under admin role protection in `backend/src/routes/adminRoutes.js`.
-
 ### Phase 8.9: Authorization Boundary & IDOR Hardening
 - [x] **Step 8.9.1: Fix Pipeline Status IDOR (`pipelineController.js`)**
   - Added parent-job ownership and organization admin verification to `GET /api/pipeline/status/:resumeId`.
@@ -187,6 +186,34 @@ flowchart TD
   - Scoped admin and non-admin queries to `organizationId`.
 - [x] **Step 8.9.3: Multi-Tenant Tenant Isolation Hardening (`jobsController.js` & `statsController.js`)**
   - Bound admin operations (`getJobById`, `updateJob`, `deleteJob`, `assignJob`, `getOverviewStats`, `getJobStats`) to `req.user.organizationId` to prevent cross-company data exposure.
+
+### Phase 8.10: Enterprise Admin Security Audit Trail UI
+- [x] **Step 8.10.1: Client Data Hook (`use-admin.js`)**
+  - Built `useAdminAuditLogs(params)` with TanStack Query, caching on `['admin', 'audit-logs', params]`.
+  - Supports dynamic query parameters: `page`, `limit`, and `action`.
+- [x] **Step 8.10.2: Security Audit Logs UI Page (`audit-logs/page.jsx`)**
+  - Created `/admin/users/audit-logs/page.jsx` with admin role guard (`useAuth()`), live event filtering, color-coded badges, relative timestamps, and client IP tracking.
+  - Implemented pagination with boundary protection and live refresh (`refetch`).
+- [x] **Step 8.10.3: Console Sub-Navigation & Sidebar Integration**
+  - Integrated sub-navigation tabs between `Team Members` and `Security Audit Trail` in `admin/users/page.jsx` and `audit-logs/page.jsx`.
+  - Added direct `Audit Logs` item in `sidebar.jsx` for admins.
+  - Added dynamic `Admin Console > Security Audit Trail` breadcrumbs in `dashboard-navbar.jsx`.
+
+### Phase 8.11: Production Security & Compliance Hardening Sweep
+- [x] **Step 8.11.1: File Upload Defense & Magic Byte Validation (`multer.js`)**
+  - Enforced strict `.pdf` extension check, null-byte injection rejection, and dangerous extension blacklist (`.php`, `.exe`, `.sh`, `.bat`, `.js`, etc.).
+  - Added in-memory magic number validation (`isPdfBuffer`) checking `%PDF-` (`0x25, 0x50, 0x44, 0x46`) signature in both recruiter uploads and public applications.
+- [x] **Step 8.11.2: Hardened CORS Policy & Security Headers (`index.js`)**
+  - Tightened CORS with dynamic origin validator supporting comma-separated `CORS_ORIGIN`, trimming trailing slashes, and disallowing credentials on wildcard origins.
+  - Configured Helmet with HSTS (`maxAge: 31536000`, `includeSubDomains`, `preload`), `frameguard: { action: "deny" }`, and `noSniff: true`.
+- [x] **Step 8.11.3: Custom 404 Fallbacks (Full-Stack)**
+  - Created root-level Next.js branded 404 page at `frontend/src/app/not-found.jsx`.
+  - Added explicit JSON 404 handler for unmatched routes in `backend/src/index.js`.
+- [x] **Step 8.11.4: Secrets, XSS, SSRF, & Token Storage Audit**
+  - Confirmed 0 tokens in `localStorage` / `sessionStorage` (100% `HttpOnly; SameSite; Secure` cookies).
+  - Confirmed 0 frontend secrets or leaked API keys.
+  - Confirmed SSRF immunity (no dynamic outbound fetching of user URLs).
+  - Verified bcrypt salt round 10 hashing with `select: false` on password model.
 
 ---
 

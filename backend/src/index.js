@@ -183,14 +183,17 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 16) {
     console.warn("⚠️ [SECURITY WARNING] JWT_SECRET is missing or less than 16 characters. Configure a strong secret in production.");
 }
 
-// Start the server
+// Start the server (only if not running under Jest tests)
 const PORT = process.env.PORT || 5000;
-connectDB().then(() => {
+
+if (process.env.NODE_ENV !== "test") {
+  connectDB().then(() => {
     app.listen(PORT, () => console.log(`ResumeLens server running on port ${PORT}`));
-}).catch((err) => {
+  }).catch((err) => {
     console.error("DB connection failed", err);
     process.exit(1);
-});
+  });
+}
 
 // ── Graceful Shutdown ──────────────────────────────────────────────────────────
 const { shutdownQueue } = require("./services/backgroundQueue");
@@ -204,3 +207,5 @@ async function gracefulShutdown(signal) {
 
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT",  () => gracefulShutdown("SIGINT"));
+
+module.exports = app;

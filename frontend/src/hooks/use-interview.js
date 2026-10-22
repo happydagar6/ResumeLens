@@ -10,7 +10,7 @@ import { toast } from "sonner";
 export const INTERVIEW_KEYS = {
   all: ["interviews"],
   candidate: (resumeId) => ["interviews", "candidate", resumeId],
-  upcoming: () => ["interviews", "upcoming"],
+  upcoming: (params = {}) => ["interviews", "upcoming", params],
 };
 
 // ── Queries (Data Fetching) ───────────────────────────────────────────────────
@@ -46,14 +46,25 @@ export function useCandidateInterviews(resumeId) {
  * 
  * @returns {Object} { interviews, isLoading, isError, error, refetch }
  */
-export function useUpcomingInterviews() {
+export function useUpcomingInterviews(params = {}) {
+  const { timeframe = "all", status } = params;
+
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: INTERVIEW_KEYS.upcoming(),
-    queryFn: () => api.get("/interviews"),
+    queryKey: INTERVIEW_KEYS.upcoming({ timeframe, status }),
+    queryFn: () => {
+      const searchParams = new URLSearchParams();
+      if (timeframe) searchParams.set("timeframe", timeframe);
+      if (status) searchParams.set("status", status);
+      const query = searchParams.toString();
+      return api.get(`/interviews${query ? `?${query}` : ""}`);
+    },
+    // Keep previous data when re-fetching in background so UI does not jump
+    placeholderData: (previousData) => previousData,
   });
 
   return {
     interviews: data?.data?.interviews ?? [],
+    total: data?.data?.total ?? 0,
     isLoading,
     isError,
     error,

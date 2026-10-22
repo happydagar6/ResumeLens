@@ -334,59 +334,82 @@ async function cancelInterview(req, res, next) {
   }
 }
 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/interviews
-// Returns all upcoming interviews across jobs assigned to the logged-in user
+// Returns interviews across jobs assigned to the logged-in user.
+// Supports query params:
+//   - timeframe: "all" (default for hub) | "upcoming" (today onwards) | "past"
+//   - status: "scheduled" | "completed" | "cancelled" | "all"
 // ─────────────────────────────────────────────────────────────────────────────
 async function getUpcomingInterviews(req, res, next) {
   try {
-    // Default to an empty filter. If the user is an Admin, this stays empty ({})
-    // so the query returns interviews across ALL jobs in the company.
+    const { timeframe = "all", status } = req.query;
+
+    // 1. Role-Based Scoping:
+    // Admin sees all jobs; Recruiters and Hiring Managers see only their accessible jobs
     let jobFilter = {};
 
-    // Check if user is NOT an admin (i.e. Recruiter or Hiring Manager)
-    // Non-admins must only see interviews for jobs they own or are assigned to.
     if (req.user.role !== "admin") {
-      // $or: Matches if AT LEAST ONE condition in the array is true:
-      // 1) User created the job, OR 2) User is in the assignedTo list.
-      // .select("_id"): Only retrieves the _id field to save memory.
       const accessibleJobs = await Job.find({
         $or: [{ createdBy: req.user.id }, { assignedTo: req.user.id }],
       }).select("_id");
 
-      // accessibleJobs is an array of objects: [{ _id: "123" }, { _id: "456" }]
-      // .map((j) => j._id): Extracts only the IDs into a flat array: ["123", "456"]
       const jobIds = accessibleJobs.map((j) => j._id);
-
-      // $in: Matches any interview whose jobId is IN the jobIds list.
       jobFilter = { jobId: { $in: jobIds } };
     }
 
-    // Fetch upcoming interviews:
-    // ...jobFilter: Unpacks { jobId: { $in: jobIds } } for recruiters, or adds nothing ({}) for admins.
-    // status $in: Only get active interviews ("scheduled" or "rescheduled"), not cancelled/completed.
-    // $gte: (Greater Than or Equal to) filters out past interviews so only today or future meetings show.
-    const upcomingInterviews = await Interview.find({
-      ...jobFilter,
-      status: { $in: ["scheduled", "rescheduled"] },
-      scheduledAt: { $gte: new Date() },
-    })
-      .populate("resumeId", "candidateName candidateEmail")
-      .populate("jobId", "title company")
+    // 2. Build the MongoDB Filter Query
+    const query = { ...jobFilter };
+
+    // Calculate midnight of the current day in local server time
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    // Apply timeframe filtering if requested
+    if (timeframe === "upcoming") {
+      query.scheduledAt = { $gte: startOfToday };
+      if (!status) {
+        query.status = { $in: ["scheduled", "rescheduled"] };
+      }
+    } else if (timeframe === "past") {
+      query.$or = [
+        { scheduledAt: { $lt: startOfToday } },
+        { status: "completed" },
+      ];
+    } else if (timeframe === "today") {
+      query.scheduledAt = { $gte: startOfToday, $lte: endOfToday };
+    }
+    // Note: If timeframe === "all", we don't constrain scheduledAt, returning all records for the hub.
+
+    // Apply explicit status filter if supplied and not "all"
+    if (status && status !== "all") {
+      query.status = status;
+    }
+
+    // 3. Query Database with Populated Relations
+    const interviews = await Interview.find(query)
+      .populate("resumeId", "candidateName candidateEmail currentStage status")
+      .populate("jobId", "title company department location")
       .populate("interviewer", "name email role")
-      .sort({ scheduledAt: 1 }) // 1 = Ascending order (earliest upcoming interview first)
-      .limit(50);
+      .populate("createdBy", "name email")
+      .sort({ scheduledAt: -1 })
+      .limit(100);
 
     return response(
       res,
       200,
-      { interviews: upcomingInterviews },
-      "Upcoming interviews retrieved",
+      { interviews, total: interviews.length },
+      "Interviews retrieved successfully",
     );
   } catch (error) {
     next(error);
   }
 }
+
 
 module.exports = {
   scheduleInterview,

@@ -12,6 +12,7 @@ import {
   ShieldAlert,
   Users,
   UserCog,
+  Calendar,
 } from "lucide-react";
 import { usePermissions } from "@/hooks/use-permissions";
 
@@ -38,6 +39,13 @@ function NavLinks({ onClick }) {
       href: "/candidates",
       label: "Candidates",
       icon: Users,
+      exact: false,
+      show: true,
+    },
+    {
+      href: "/interviews",
+      label: "Interviews",
+      icon: Calendar,
       exact: false,
       show: true,
     },

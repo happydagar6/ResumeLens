@@ -4,14 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest --runInBand --detectOpenHandles --forceExit",
     "start": "node src/index.js",
     "dev": "nodemon src/index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@12.5.1",
+  "packageManager": "pnpm@12.14.0",
   "dependencies": {
     "@langchain/core": "^1.1.24",
     "@langchain/langgraph": "^1.1.4",
@@ -42,7 +42,9 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "jest": "^30.5.2",
     "nodemon": "^3.1.11",
-    "pdfkit": "^0.17.2"
+    "pdfkit": "^0.17.2",
+    "supertest": "^7.3.1"
   }
 }

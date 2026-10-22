@@ -68,7 +68,6 @@ import {
   Send,
 } from "lucide-react";
 import Link from "next/link";
-import { generateScreeningPDF } from "@/lib/generate-screening-pdf";
 
 const recommendationLabels = {
   strong_yes: { label: "Strong Yes", icon: ThumbsUp, color: "text-green-600" },
@@ -81,6 +80,20 @@ const recommendationLabels = {
 export default function ScreeningDetailPage() {
   const rescreenMutation = useRescreen();
   const { screeningId } = useParams();
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+
+  // Dynamic import on click to prevent loading heavy jspdf on initial page render
+  const handleExportPDF = async () => {
+    try {
+      setIsExportingPDF(true);
+      const { generateScreeningPDF } = await import("@/lib/generate-screening-pdf");
+      generateScreeningPDF(screening, questions?.questions || []);
+    } catch (err) {
+      console.error("Failed to generate PDF:", err);
+    } finally {
+      setIsExportingPDF(false);
+    }
+  };
 
   // ──────────────────────────────────────────────────────────────────────────────────
   const { screening, isLoading: screeningLoading } = useScreening(screeningId);
@@ -182,11 +195,14 @@ export default function ScreeningDetailPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() =>
-            generateScreeningPDF(screening, questions?.questions || [])
-          }
+          disabled={isExportingPDF}
+          onClick={handleExportPDF}
         >
-          <Download className="mr-2 h-4 w-4" />
+          {isExportingPDF ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="mr-2 h-4 w-4" />
+          )}
           Export PDF
         </Button>
 

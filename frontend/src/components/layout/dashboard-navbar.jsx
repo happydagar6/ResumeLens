@@ -34,6 +34,7 @@ import {
   Building2,
   Command,
   Zap,
+  Calendar,
 } from "lucide-react";
 import NotificationBell from "@/components/dashboard/notification-bell";
 
@@ -43,6 +44,9 @@ import NotificationBell from "@/components/dashboard/notification-bell";
 function getBreadcrumbs(pathname) {
   if (pathname === "/dashboard") {
     return { section: "Workspace", page: "Overview" };
+  }
+  if (pathname.startsWith("/interviews")) {
+    return { section: "Schedule", page: "Interview Hub" };
   }
   if (pathname === "/jobs/new") {
     return { section: "Jobs", page: "Create Requisition" };
@@ -236,6 +240,12 @@ export default function DashboardNavbar() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
+                  <Link href="/interviews" className="cursor-pointer text-xs py-2">
+                    <Calendar className="mr-2 h-3.5 w-3.5 text-primary" />
+                    Interview Schedule
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                   <Link href="/settings" className="cursor-pointer text-xs py-2">
                     <Settings className="mr-2 h-3.5 w-3.5 text-primary" />
                     Organization Settings
@@ -348,6 +358,14 @@ export default function DashboardNavbar() {
               >
                 <Users className="h-3.5 w-3.5 text-primary" />
                 <span>Candidate Directory</span>
+              </Link>
+              <Link
+                href="/interviews"
+                onClick={() => setSearchOpen(false)}
+                className="flex items-center gap-2 p-2 rounded-lg hover:bg-muted/60 transition-colors"
+              >
+                <Calendar className="h-3.5 w-3.5 text-primary" />
+                <span>Interview Hub</span>
               </Link>
               {user?.role !== "hiring_manager" && (
                 <Link
